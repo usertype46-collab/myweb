@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>上架效率秒數試算系統 v2</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 25px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #dcdde1;
+            padding: 12px 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #34495e;
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .total-row {
+            background-color: #eaeded !important;
+            font-weight: bold;
+        }
+        input[type="time"], input[type="number"] {
+            width: 90%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 14px;
+        }
+        input[type="time"] {
+            width: 130px;
+        }
+        input:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 5px rgba(52,152,219,0.3);
+        }
+        .bg-red {
+            background-color: #ffcccc !important;
+            color: #c0392b;
+            font-weight: bold;
+        }
+        .note-box {
+            background-color: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 4px 4px 0;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+        .note-box ul {
+            margin: 5px 0 0 20px;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>商品上架效率與時間統計試算表 (v2 修正版)</h2>
+    
+    <div class="note-box">
+        <strong>💡 使用說明與計算規則：</strong>
+        <ul>
+            <li><b>時間輸入：</b>點擊時間欄位會彈出時分秒選擇器。若手動輸入，格式為 <code>HH:MM:SS</code>（如 19:52:20）。</li>
+            <li><b>扣除緩衝：</b>系統會將總秒數自動扣除固定緩衝時間 2 分鐘（120秒）。若總秒數不足 120 秒則計為 0。</li>
+            <li><b>紅底警示：</b>當「無緩衝平均」或「緩衝後平均」超過 <b>15.6 秒</b> 時，該欄位會自動顯示為<span style="color:#c0392b; font-weight:bold;">紅底色</span>。</li>
+            <li>所有欄位皆為即時連動計算，更改數值後表格會自動更新加總與平均。</li>
+        </ul>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>分類名稱</th>
+                <th>開始時間 (時:分:秒)</th>
+                <th>結束時間 (時:分:秒)</th>
+                <th>包裹顆數 (手動)</th>
+                <th>開始到結束總秒數</th>
+                <th>扣除緩衝後秒數 (減2分)</th>
+                <th>無緩衝平均 (秒/顆)</th>
+                <th>緩衝後平均 (秒/顆)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr id="row-1">
+                <td><b>1上</b></td>
+                <td><input type="time" step="1" id="start-1" onchange="calculateRow(1)"></td>
+                <td><input type="time" step="1" id="end-1" onchange="calculateRow(1)"></td>
+                <td><input type="number" min="0" id="count-1" oninput="calculateRow(1)"></td>
+                <td id="total-sec-1">0</td>
+                <td id="buffer-sec-1">0</td>
+                <td id="avg-1">0.00</td>
+                <td id="avg-buf-1">0.00</td>
+            </tr>
+            <tr id="row-2">
+                <td><b>2上</b></td>
+                <td><input type="time" step="1" id="start-2" onchange="calculateRow(2)"></td>
+                <td><input type="time" step="1" id="end-2" onchange="calculateRow(2)"></td>
+                <td><input type="number" min="0" id="count-2" oninput="calculateRow(2)"></td>
+                <td id="total-sec-2">0</td>
+                <td id="buffer-sec-2">0</td>
+                <td id="avg-2">0.00</td>
+                <td id="avg-buf-2">0.00</td>
+            </tr>
+            <tr id="row-3">
+                <td><b>3上</b></td>
+                <td><input type="time" step="1" id="start-3" onchange="calculateRow(3)"></td>
+                <td><input type="time" step="1" id="end-3" onchange="calculateRow(3)"></td>
+                <td><input type="number" min="0" id="count-3" oninput="calculateRow(3)"></td>
+                <td id="total-sec-3">0</td>
+                <td id="buffer-sec-3">0</td>
+                <td id="avg-3">0.00</td>
+                <td id="avg-buf-3">0.00</td>
+            </tr>
+            <tr id="row-4">
+                <td><b>4上</b></td>
+                <td><input type="time" step="1" id="start-4" onchange="calculateRow(4)"></td>
+                <td><input type="time" step="1" id="end-4" onchange="calculateRow(4)"></td>
+                <td><input type="number" min="0" id="count-4" oninput="calculateRow(4)"></td>
+                <td id="total-sec-4">0</td>
+                <td id="buffer-sec-4">0</td>
+                <td id="avg-4">0.00</td>
+                <td id="avg-buf-4">0.00</td>
+            </tr>
+            <tr id="row-5">
+                <td><b>5上</b></td>
+                <td><input type="time" step="1" id="start-5" onchange="calculateRow(5)"></td>
+                <td><input type="time" step="1" id="end-5" onchange="calculateRow(5)"></td>
+                <td><input type="number" min="0" id="count-5" oninput="calculateRow(5)"></td>
+                <td id="total-sec-5">0</td>
+                <td id="buffer-sec-5">0</td>
+                <td id="avg-5">0.00</td>
+                <td id="avg-buf-5">0.00</td>
+            </tr>
+            <tr class="total-row">
+                <td>加總 / 平均</td>
+                <td>-</td>
+                <td>-</td>
+                <td id="grand-count">0</td>
+                <td id="grand-total-sec">0</td>
+                <td id="grand-buffer-sec">0</td>
+                <td id="grand-avg">0.00</td>
+                <td id="grand-avg-buf">-</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function timeToSeconds(timeStr) {
+        if (!timeStr) return null;
+        const parts = timeStr.split(':');
+        const hrs = parseInt(parts[0], 10) || 0;
+        const mins = parseInt(parts[1], 10) || 0;
+        const secs = parseInt(parts[2], 10) || 0;
+        return hrs * 3600 + mins * 60 + secs;
+    }
+
+    function calculateRow(rowNum) {
+        const startStr = document.getElementById(`start-${rowNum}`).value;
+        const endStr = document.getElementById(`end-${rowNum}`).value;
+        const countVal = parseFloat(document.getElementById(`count-${rowNum}`).value) || 0;
+
+        let totalSeconds = 0;
+        let bufferSeconds = 0;
+        let avg = 0;
+        let avgBuf = 0;
+
+        if (startStr && endStr) {
+            let startSec = timeToSeconds(startStr);
+            let endSec = timeToSeconds(endStr);
+            if (endSec < startSec) endSec += 24 * 3600;
+            totalSeconds = endSec - startSec;
+            bufferSeconds = totalSeconds - 120;
+            if (bufferSeconds < 0) bufferSeconds = 0;
+        }
+
+        if (countVal > 0) {
+            avg = totalSeconds / countVal;
+            avgBuf = bufferSeconds / countVal;
+        }
+
+        document.getElementById(`total-sec-${rowNum}`).innerText = totalSeconds;
+        document.getElementById(`buffer-sec-${rowNum}`).innerText = bufferSeconds;
+        document.getElementById(`avg-${rowNum}`).innerText = avg.toFixed(2);
+        document.getElementById(`avg-buf-${rowNum}`).innerText = avgBuf.toFixed(2);
+
+        const avgTd = document.getElementById(`avg-${rowNum}`);
+        if (countVal > 0 && avg > 15.6) { avgTd.classList.add('bg-red'); } else { avgTd.classList.remove('bg-red'); }
+
+        const avgBufTd = document.getElementById(`avg-buf-${rowNum}`);
+        if (countVal > 0 && avgBuf > 15.6) { avgBufTd.classList.add('bg-red'); } else { avgBufTd.classList.remove('bg-red'); }
+
+        calculateGrandTotal();
+    }
+
+    function calculateGrandTotal() {
+        let grandCount = 0;
+        let grandTotalSec = 0;
+        let grandBufferSec = 0;
+
+        for (let i = 1; i <= 5; i++) {
+            const countVal = parseFloat(document.getElementById(`count-${i}`).value) || 0;
+            const totalSec = parseFloat(document.getElementById(`total-sec-${i}`).innerText) || 0;
+            const bufferSec = parseFloat(document.getElementById(`buffer-sec-${i}`).innerText) || 0;
+            grandCount += countVal;
+            grandTotalSec += totalSec;
+            grandBufferSec += bufferSec;
+        }
+
+        let grandAvg = 0;
+        if (grandCount > 0) grandAvg = grandTotalSec / grandCount;
+
+        document.getElementById('grand-count').innerText = grandCount;
+        document.getElementById('grand-total-sec').innerText = grandTotalSec;
+        document.getElementById('grand-buffer-sec').innerText = grandBufferSec;
+        
+        const grandAvgTd = document.getElementById('grand-avg');
+        grandAvgTd.innerText = grandAvg.toFixed(2);
+
+        if (grandCount > 0 && grandAvg > 15.6) { grandAvgTd.classList.add('bg-red'); } else { grandAvgTd.classList.remove('bg-red'); }
+    }
+</script>
+
+</body>
+</html>
