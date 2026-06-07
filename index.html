@@ -3,26 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>專業版 - 商品上架效率統計系統</title>
+    <title>專業上架效率分析系統</title>
     <style>
         :root {
             --primary-color: #2c3e50;
             --accent-color: #3498db;
-            --warning-color: #c0392b;
-            --bg-color: #f4f7f6;
-            --table-border: #dcdde1;
+            --danger-color: #e74c3c;
+            --bg-color: #f8f9fa;
+            --border-color: #dee2e6;
         }
 
         body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: 'Segoe UI', Roboto, sans-serif;
             background-color: var(--bg-color);
             color: var(--primary-color);
             margin: 0;
-            padding: 20px;
+            padding: 40px 20px;
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto;
             background: #fff;
             padding: 30px;
@@ -30,102 +30,75 @@
             box-shadow: 0 10px 25px rgba(0,0,0,0.05);
         }
 
-        h2 { text-align: center; margin-bottom: 25px; font-weight: 700; }
+        h2 { border-left: 5px solid var(--accent-color); padding-left: 15px; margin-bottom: 30px; }
 
         .note-box {
-            background-color: #ebf5fb;
-            border-left: 5px solid var(--accent-color);
-            padding: 15px;
-            margin-bottom: 25px;
-            border-radius: 4px;
-            font-size: 0.95em;
+            background-color: #f1f7fd;
+            border: 1px solid #d1e7f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            color: #2980b9;
         }
 
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            margin-bottom: 20px;
-        }
-
-        th {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 15px 10px;
-            text-align: center;
-        }
-
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        th { background: var(--primary-color); color: white; padding: 15px; font-weight: 600; }
         th:first-child { border-radius: 8px 0 0 0; }
         th:last-child { border-radius: 0 8px 0 0; }
+        td { padding: 12px; border-bottom: 1px solid var(--border-color); text-align: center; }
 
-        td {
-            border-bottom: 1px solid var(--table-border);
-            border-right: 1px solid var(--table-border);
-            padding: 12px;
-            text-align: center;
-        }
-
-        td:first-child { border-left: 1px solid var(--table-border); }
-
-        input[type="time"], input[type="number"] {
+        input {
             width: 85%;
             padding: 8px;
-            border: 1px solid #ccc;
+            border: 1px solid var(--border-color);
             border-radius: 6px;
             text-align: center;
+            transition: all 0.3s;
         }
+        input:focus { outline: none; border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(52,152,219,0.1); }
 
-        .total-row { background-color: #fdfdfd; font-weight: bold; }
-        .bg-red { background-color: #ffdada !important; color: var(--warning-color); }
+        .bg-red { background-color: #ffeaea !important; color: var(--danger-color); font-weight: bold; }
+        .total-row { background-color: #f8f9fa; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>📊 上架作業效率分析系統</h2>
+    <h2>🚀 上架效率分析系統 v2.1</h2>
     
     <div class="note-box">
-        <strong>使用提示：</strong>
-        <ul>
-            <li>輸入「開始」與「結束」時間，系統將自動計算並扣除 120 秒 (2分鐘) 緩衝時間。</li>
-            <li>平均值超過 15.6 秒將自動標記為紅色警示。</li>
+        <strong>💡 操作指南：</strong>
+        <ul style="margin: 10px 0 0 20px; padding: 0;">
+            <li>輸入開始與結束時間（HH:MM:SS）及包裹總數，系統自動即時計算。</li>
+            <li>系統預設扣除 120 秒作業緩衝時間。</li>
+            <li>當平均時間超過 <b>15.6 秒/顆</b>，系統將自動標記紅色警示。</li>
         </ul>
     </div>
 
     <table>
         <thead>
             <tr>
-                <th>分類</th>
-                <th>開始時間</th>
-                <th>結束時間</th>
-                <th>顆數</th>
-                <th>總秒數</th>
-                <th>緩衝後秒</th>
-                <th>平均/顆</th>
-                <th>緩衝後平均</th>
+                <th>分類</th><th>開始時間</th><th>結束時間</th><th>包裹顆數</th><th>總秒數</th><th>緩衝後(秒)</th><th>無緩衝均速</th><th>緩衝後均速</th>
             </tr>
         </thead>
         <tbody id="data-body">
             <script>
-                for(let i=1; i<=5; i++){
+                for(let i=1; i<=5; i++) {
                     document.write(`
-                        <tr id="row-${i}">
-                            <td><b>${i}上</b></td>
-                            <td><input type="time" step="1" id="start-${i}" onchange="calculate()"></td>
-                            <td><input type="time" step="1" id="end-${i}" onchange="calculate()"></td>
-                            <td><input type="number" min="0" id="count-${i}" oninput="calculate()"></td>
-                            <td id="total-sec-${i}">0</td>
-                            <td id="buffer-sec-${i}">0</td>
-                            <td id="avg-${i}">0.00</td>
-                            <td id="avg-buf-${i}">0.00</td>
-                        </tr>
-                    `);
+                    <tr>
+                        <td><b>${i}上</b></td>
+                        <td><input type="time" step="1" id="start-${i}" onchange="calculateRow(${i})"></td>
+                        <td><input type="time" step="1" id="end-${i}" onchange="calculateRow(${i})"></td>
+                        <td><input type="number" id="count-${i}" oninput="calculateRow(${i})" placeholder="0"></td>
+                        <td id="total-sec-${i}">0</td>
+                        <td id="buffer-sec-${i}">0</td>
+                        <td id="avg-${i}">0.00</td>
+                        <td id="avg-buf-${i}">0.00</td>
+                    </tr>`);
                 }
             </script>
             <tr class="total-row">
-                <td>總計</td>
-                <td>-</td>
-                <td>-</td>
+                <td>總計</td><td>-</td><td>-</td>
                 <td id="grand-count">0</td>
                 <td id="grand-total-sec">0</td>
                 <td id="grand-buffer-sec">0</td>
@@ -137,55 +110,55 @@
 </div>
 
 <script>
-    function timeToSeconds(str) {
-        const parts = str.split(':');
-        return (parseInt(parts[0]) * 3600) + (parseInt(parts[1]) * 60) + (parseInt(parts[2]) || 0);
+    function timeToSeconds(timeStr) {
+        if (!timeStr) return null;
+        const [h, m, s] = timeStr.split(':').map(Number);
+        return h * 3600 + m * 60 + s;
     }
 
-    function calculate() {
-        let grandCount = 0, grandTotal = 0, grandBuffer = 0;
+    function calculateRow(rowNum) {
+        const start = timeToSeconds(document.getElementById(`start-${rowNum}`).value);
+        const end = timeToSeconds(document.getElementById(`end-${rowNum}`).value);
+        const count = parseFloat(document.getElementById(`count-${rowNum}`).value) || 0;
 
-        for(let i=1; i<=5; i++){
-            const start = document.getElementById(`start-${i}`).value;
-            const end = document.getElementById(`end-${i}`).value;
-            const count = parseFloat(document.getElementById(`count-${i}`).value) || 0;
+        if (start !== null && end !== null) {
+            let total = (end < start) ? (end + 86400 - start) : (end - start);
+            let buffer = Math.max(0, total - 120);
             
-            let total = 0, buffer = 0, avg = 0, avgBuf = 0;
+            document.getElementById(`total-sec-${rowNum}`).innerText = total;
+            document.getElementById(`buffer-sec-${rowNum}`).innerText = buffer;
 
-            if(start && end) {
-                let s = timeToSeconds(start), e = timeToSeconds(end);
-                if(e < s) e += 86400;
-                total = e - s;
-                buffer = Math.max(0, total - 120);
+            if (count > 0) {
+                let avg = total / count;
+                let avgBuf = buffer / count;
+                const avgEl = document.getElementById(`avg-${rowNum}`);
+                const avgBufEl = document.getElementById(`avg-buf-${rowNum}`);
+                
+                avgEl.innerText = avg.toFixed(2);
+                avgBufEl.innerText = avgBuf.toFixed(2);
+                
+                avg > 15.6 ? avgEl.classList.add('bg-red') : avgEl.classList.remove('bg-red');
+                avgBuf > 15.6 ? avgBufEl.classList.add('bg-red') : avgBufEl.classList.remove('bg-red');
             }
-
-            if(count > 0) {
-                avg = total / count;
-                avgBuf = buffer / count;
-            }
-
-            document.getElementById(`total-sec-${i}`).innerText = total;
-            document.getElementById(`buffer-sec-${i}`).innerText = buffer;
-            document.getElementById(`avg-${i}`).innerText = avg.toFixed(2);
-            document.getElementById(`avg-buf-${i}`).innerText = avgBuf.toFixed(2);
-            
-            // 警示邏輯
-            document.getElementById(`avg-${i}`).className = (count > 0 && avg > 15.6) ? 'bg-red' : '';
-            document.getElementById(`avg-buf-${i}`).className = (count > 0 && avgBuf > 15.6) ? 'bg-red' : '';
-
-            grandCount += count;
-            grandTotal += total;
-            grandBuffer += buffer;
         }
+        calculateGrandTotal();
+    }
 
-        document.getElementById('grand-count').innerText = grandCount;
-        document.getElementById('grand-total-sec').innerText = grandTotal;
-        document.getElementById('grand-buffer-sec').innerText = grandBuffer;
+    function calculateGrandTotal() {
+        let gCount = 0, gTotal = 0, gBuf = 0;
+        for(let i=1; i<=5; i++) {
+            gCount += parseFloat(document.getElementById(`count-${i}`).value) || 0;
+            gTotal += parseInt(document.getElementById(`total-sec-${i}`).innerText) || 0;
+            gBuf += parseInt(document.getElementById(`buffer-sec-${i}`).innerText) || 0;
+        }
+        document.getElementById('grand-count').innerText = gCount;
+        document.getElementById('grand-total-sec').innerText = gTotal;
+        document.getElementById('grand-buffer-sec').innerText = gBuf;
         
-        let gAvg = grandCount > 0 ? (grandTotal / grandCount) : 0;
-        const grandAvgEl = document.getElementById('grand-avg');
-        grandAvgEl.innerText = gAvg.toFixed(2);
-        grandAvgEl.className = (grandCount > 0 && gAvg > 15.6) ? 'bg-red' : '';
+        const gAvg = gCount > 0 ? (gTotal / gCount) : 0;
+        const gAvgEl = document.getElementById('grand-avg');
+        gAvgEl.innerText = gAvg.toFixed(2);
+        gAvg > 15.6 ? gAvgEl.classList.add('bg-red') : gAvgEl.classList.remove('bg-red');
     }
 </script>
 </body>
