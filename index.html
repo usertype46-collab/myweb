@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>百富粉體塗裝自動槍參數系統</title>
+    <!-- 使用 Tailwind CSS 快速排版 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-800 text-white font-sans min-h-screen">
+    <div class="max-w-6xl mx-auto p-4">
+        
+        <!-- 系統標題與頁籤 -->
+        <h1 class="text-2xl font-bold mb-4 text-blue-400">百富粉體塗裝參數系統</h1>
+        <div class="flex gap-4 mb-6">
+            <button id="tabQueryBtn" class="flex-1 bg-blue-600 py-2 rounded-lg font-bold">相機查詢模式</button>
+            <button id="tabRegisterBtn" class="flex-1 bg-gray-600 py-2 rounded-lg font-bold">參數建檔模式</button>
+        </div>
+
+        <!-- ================= 區塊 1：相機查詢 ================= -->
+        <div id="querySection" class="block">
+            <div class="bg-gray-700 p-4 rounded-xl mb-6 shadow-lg border border-gray-600">
+                <h2 class="text-xl mb-4 font-bold text-yellow-400">📷 構件相機自動分析</h2>
+                <div class="flex items-center gap-4">
+                    <!-- 調用手機相機 -->
+                    <input type="file" accept="image/*" capture="environment" id="cameraInput" class="hidden">
+                    <button onclick="document.getElementById('cameraInput').click()" class="bg-green-600 hover:bg-green-500 px-6 py-4 rounded-lg font-bold shadow-lg w-full text-lg">
+                        📸 點擊拍照並自動分析
+                    </button>
+                </div>
+                <p id="analysisStatus" class="mt-4 text-sm text-gray-300"></p>
+                <p class="text-xs text-gray-400 mt-2">* 系統將自動抓取特徵並連動下方資料表</p>
+            </div>
+
+            <!-- 查詢結果展示區 (左中右佈局) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="resultBoard" style="display:none;">
+                
+                <!-- 左側：自動槍粉量 (十位數) -->
+                <div class="bg-gray-700 p-4 rounded-xl border border-blue-500">
+                    <h3 class="font-bold mb-3 text-blue-300">左側：自動槍粉量數據</h3>
+                    <div class="grid grid-cols-2 gap-2 text-center text-sm">
+                        <div class="bg-gray-800 p-2 rounded">1號: <span id="q_gun_1" class="text-green-400 text-lg"></span></div>
+                        <div class="bg-gray-800 p-2 rounded">2號: <span id="q_gun_2" class="text-green-400 text-lg"></span></div>
+                        <div class="bg-gray-800 p-2 rounded">3號: <span id="q_gun_3" class="text-green-400 text-lg"></span></div>
+                        <div class="bg-gray-800 p-2 rounded">4號: <span id="q_gun_4" class="text-green-400 text-lg"></span></div>
+                        <div class="bg-gray-800 p-2 rounded">5號: <span id="q_gun_5" class="text-green-400 text-lg"></span></div>
+                        <div class="bg-gray-800 p-2 rounded">6號: <span id="q_gun_6" class="text-green-400 text-lg"></span></div>
+                        <div class="bg-gray-800 p-2 rounded">7號: <span id="q_gun_7" class="text-green-400 text-lg"></span></div>
+                        <div class="bg-gray-800 p-2 rounded">8號: <span id="q_gun_8" class="text-green-400 text-lg"></span></div>
+                    </div>
+                </div>
+
+                <!-- 中間：往復機運行參數 -->
+                <div class="bg-gray-700 p-4 rounded-xl border border-yellow-500">
+                    <h3 class="font-bold mb-3 text-yellow-300">中間：往復機運行參數</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between bg-gray-800 p-2 rounded">
+                            <span>上下速度 (百)</span>
+                            <span>左1: <b id="q_speed_left" class="text-yellow-400"></b> | 右2: <b id="q_speed_right" class="text-yellow-400"></b></span>
+                        </div>
+                        <div class="flex justify-between bg-gray-800 p-2 rounded">
+                            <span>上換向點 (千)</span>
+                            <span>左1: <b id="q_up_turn_left" class="text-yellow-400"></b> | 右2: <b id="q_up_turn_right" class="text-yellow-400"></b></span>
+                        </div>
+                        <div class="flex justify-between bg-gray-800 p-2 rounded">
+                            <span>下換向點 (千)</span>
+                            <span>左1: <b id="q_down_turn_left" class="text-yellow-400"></b> | 右2: <b id="q_down_turn_right" class="text-yellow-400"></b></span>
+                        </div>
+                        <div class="flex justify-between bg-gray-800 p-2 rounded">
+                            <span>工件距離 (百)</span>
+                            <span>左1: <b id="q_dist_left" class="text-yellow-400"></b> | 右2: <b id="q_dist_right" class="text-yellow-400"></b></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右側：電壓電流 -->
+                <div class="bg-gray-700 p-4 rounded-xl border border-red-500">
+                    <h3 class="font-bold mb-3 text-red-300">右側：自動槍電壓/電流</h3>
+                    <div class="space-y-3">
+                        <div class="bg-gray-800 p-4 rounded text-center">
+                            <div class="text-gray-400 text-sm">電壓 (十位數)</div>
+                            <div class="text-3xl text-red-400 font-bold" id="q_voltage"></div>
+                        </div>
+                        <div class="bg-gray-800 p-4 rounded text-center">
+                            <div class="text-gray-400 text-sm">電流 (十位數)</div>
+                            <div class="text-3xl text-red-400 font-bold" id="q_current"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 下方備註 -->
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4" id="remarkBoard" style="display:none;">
+                <div class="bg-gray-700 p-3 rounded"><span class="text-gray-400 text-sm">備註一：</span><div id="q_remark_1"></div></div>
+                <div class="bg-gray-700 p-3 rounded"><span class="text-gray-400 text-sm">備註二：</span><div id="q_remark_2"></div></div>
+                <div class="bg-gray-700 p-3 rounded"><span class="text-gray-400 text-sm">備註三：</span><div id="q_remark_3"></div></div>
+            </div>
+        </div>
+
+        <!-- ================= 區塊 2：參數建檔 ================= -->
+        <div id="registerSection" class="hidden">
+            <div class="bg-gray-700 p-6 rounded-xl shadow-lg border border-gray-600">
+                <h2 class="text-xl mb-4 font-bold text-green-400">📝 新增構件參數清冊</h2>
+                <form id="paramForm" class="space-y-4 text-sm">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-gray-400 mb-1">品名</label>
+                            <input type="text" id="item_name" required class="w-full bg-gray-800 p-2 rounded border border-gray-600 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-gray-400 mb-1">照片拍攝 (供日後AI識別)</label>
+                            <input type="file" accept="image/*" capture="environment" class="w-full bg-gray-800 p-1.5 rounded border border-gray-600 text-white">
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-600 pt-4"><h3 class="text-blue-300 mb-2">槍粉量數據 (0-99)</h3></div>
+                    <div class="grid grid-cols-4 md:grid-cols-8 gap-2">
+                        <input type="number" id="gun_1" placeholder="槍1" max="99" class="bg-gray-800 p-2 rounded w-full text-center">
+                        <input type="number" id="gun_2" placeholder="槍2" max="99" class="bg-gray-800 p-2 rounded w-full text-center">
+                        <input type="number" id="gun_3" placeholder="槍3" max="99" class="bg-gray-800 p-2 rounded w-full text-center">
+                        <input type="number" id="gun_4" placeholder="槍4" max="99" class="bg-gray-800 p-2 rounded w-full text-center">
+                        <input type="number" id="gun_5" placeholder="槍5" max="99" class="bg-gray-800 p-2 rounded w-full text-center">
+                        <input type="number" id="gun_6" placeholder="槍6" max="99" class="bg-gray-800 p-2 rounded w-full text-center">
+                        <input type="number" id="gun_7" placeholder="槍7" max="99" class="bg-gray-800 p-2 rounded w-full text-center">
+                        <input type="number" id="gun_8" placeholder="槍8" max="99" class="bg-gray-800 p-2 rounded w-full text-center">
+                    </div>
+
+                    <div class="border-t border-gray-600 pt-4"><h3 class="text-yellow-300 mb-2">往復機運行參數</h3></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <input type="number" id="speed_left" placeholder="左上下速度(百)" max="999" class="w-full bg-gray-800 p-2 rounded">
+                            <input type="number" id="up_turn_left" placeholder="左上換向點(千)" max="9999" class="w-full bg-gray-800 p-2 rounded">
+                            <input type="number" id="down_turn_left" placeholder="左下換向點(千)" max="9999" class="w-full bg-gray-800 p-2 rounded">
+                            <input type="number" id="dist_left" placeholder="左工件距離(百)" max="999" class="w-full bg-gray-800 p-2 rounded">
+                        </div>
+                        <div class="space-y-2">
+                            <input type="number" id="speed_right" placeholder="右上下速度(百)" max="999" class="w-full bg-gray-800 p-2 rounded">
+                            <input type="number" id="up_turn_right" placeholder="右上換向點(千)" max="9999" class="w-full bg-gray-800 p-2 rounded">
+                            <input type="number" id="down_turn_right" placeholder="右下換向點(千)" max="9999" class="w-full bg-gray-800 p-2 rounded">
+                            <input type="number" id="dist_right" placeholder="右工件距離(百)" max="999" class="w-full bg-gray-800 p-2 rounded">
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-600 pt-4"><h3 class="text-red-300 mb-2">電壓與電流 (0-99)</h3></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <input type="number" id="voltage" placeholder="電壓" max="99" class="w-full bg-gray-800 p-2 rounded">
+                        <input type="number" id="current" placeholder="電流" max="99" class="w-full bg-gray-800 p-2 rounded">
+                    </div>
+
+                    <div class="border-t border-gray-600 pt-4"><h3 class="text-gray-300 mb-2">備註</h3></div>
+                    <div class="grid grid-cols-1 gap-2">
+                        <input type="text" id="remark_1" placeholder="備註一" class="w-full bg-gray-800 p-2 rounded">
+                        <input type="text" id="remark_2" placeholder="備註二" class="w-full bg-gray-800 p-2 rounded">
+                        <input type="text" id="remark_3" placeholder="備註三" class="w-full bg-gray-800 p-2 rounded">
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 py-3 rounded-lg font-bold text-lg mt-6 shadow-lg">
+                        儲存參數至資料庫
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 匯入 Supabase JS Client -->
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+        
+        // Supabase 初始化 (這是在前端安全的配置，請勿在此寫入資料庫密碼)
+        const supabaseUrl = 'https://wxdrtnqizpbjfugdaglb.supabase.co'
+        const supabaseKey = 'sb_publishable_qUCcWVbzo-99rP85r_RhQg_EGewmxB4'
+        const supabase = createClient(supabaseUrl, supabaseKey)
+
+        // 頁籤切換邏輯
+        const tabQueryBtn = document.getElementById('tabQueryBtn');
+        const tabRegisterBtn = document.getElementById('tabRegisterBtn');
+        const querySection = document.getElementById('querySection');
+        const registerSection = document.getElementById('registerSection');
+
+        tabQueryBtn.addEventListener('click', () => {
+            querySection.classList.remove('hidden');
+            registerSection.classList.add('hidden');
+            tabQueryBtn.classList.replace('bg-gray-600', 'bg-blue-600');
+            tabRegisterBtn.classList.replace('bg-blue-600', 'bg-gray-600');
+        });
+
+        tabRegisterBtn.addEventListener('click', () => {
+            registerSection.classList.remove('hidden');
+            querySection.classList.add('hidden');
+            tabRegisterBtn.classList.replace('bg-gray-600', 'bg-blue-600');
+            tabQueryBtn.classList.replace('bg-blue-600', 'bg-gray-600');
+        });
+
+        // ================= 相機自動分析 (模擬 AI 匹配) =================
+        document.getElementById('cameraInput').addEventListener('change', async (e) => {
+            if(e.target.files.length > 0) {
+                const status = document.getElementById('analysisStatus');
+                status.innerText = "🔄 影像特徵分析中，正在匹配資料庫...";
+                status.classList.replace('text-gray-300', 'text-yellow-400');
+                
+                // 模擬 AI 分析延遲
+                setTimeout(async () => {
+                    // 從資料庫隨機撈取一筆最符合的資料 (實際應用中此處應發送圖片給後端 AI 模型)
+                    const { data, error } = await supabase.from('coating_params').select('*').limit(1).order('created_at', { ascending: false });
+                    
+                    if(error || data.length === 0) {
+                        status.innerText = "❌ 找不到符合的構件參數，請確認構件是否已建檔。";
+                        status.classList.replace('text-yellow-400', 'text-red-400');
+                        return;
+                    }
+
+                    const match = data[0];
+                    status.innerText = `✅ 分析成功！匹配構件：${match.item_name}`;
+                    status.classList.replace('text-yellow-400', 'text-green-400');
+
+                    // 渲染數據到畫面
+                    document.getElementById('resultBoard').style.display = 'grid';
+                    document.getElementById('remarkBoard').style.display = 'grid';
+
+                    const fields = ['gun_1','gun_2','gun_3','gun_4','gun_5','gun_6','gun_7','gun_8',
+                                    'speed_left','speed_right','up_turn_left','up_turn_right',
+                                    'down_turn_left','down_turn_right','dist_left','dist_right',
+                                    'voltage','current','remark_1','remark_2','remark_3'];
+                    
+                    fields.forEach(field => {
+                        const el = document.getElementById('q_' + field);
+                        if(el) el.innerText = match[field] || '0';
+                    });
+                }, 1500);
+            }
+        });
+
+        // ================= 新增參數至資料庫 =================
+        document.getElementById('paramForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // 收集表單資料
+            const payload = {
+                item_name: document.getElementById('item_name').value,
+                gun_1: document.getElementById('gun_1').value || 0,
+                gun_2: document.getElementById('gun_2').value || 0,
+                gun_3: document.getElementById('gun_3').value || 0,
+                gun_4: document.getElementById('gun_4').value || 0,
+                gun_5: document.getElementById('gun_5').value || 0,
+                gun_6: document.getElementById('gun_6').value || 0,
+                gun_7: document.getElementById('gun_7').value || 0,
+                gun_8: document.getElementById('gun_8').value || 0,
+                speed_left: document.getElementById('speed_left').value || 0,
+                speed_right: document.getElementById('speed_right').value || 0,
+                up_turn_left: document.getElementById('up_turn_left').value || 0,
+                up_turn_right: document.getElementById('up_turn_right').value || 0,
+                down_turn_left: document.getElementById('down_turn_left').value || 0,
+                down_turn_right: document.getElementById('down_turn_right').value || 0,
+                dist_left: document.getElementById('dist_left').value || 0,
+                dist_right: document.getElementById('dist_right').value || 0,
+                voltage: document.getElementById('voltage').value || 0,
+                current: document.getElementById('current').value || 0,
+                remark_1: document.getElementById('remark_1').value,
+                remark_2: document.getElementById('remark_2').value,
+                remark_3: document.getElementById('remark_3').value,
+            };
+
+            const { data, error } = await supabase.from('coating_params').insert([payload]);
+
+            if (error) {
+                alert('儲存失敗：' + error.message);
+            } else {
+                alert('✅ 參數建檔成功！');
+                document.getElementById('paramForm').reset();
+            }
+        });
+    </script>
+</body>
+</html>
