@@ -13,23 +13,32 @@
         <!-- 系統標題與頁籤 -->
         <h1 class="text-2xl font-bold mb-4 text-blue-400">百富粉體塗裝參數系統</h1>
         <div class="flex gap-4 mb-6">
-            <button id="tabQueryBtn" class="flex-1 bg-blue-600 py-2 rounded-lg font-bold">相機查詢模式</button>
+            <button id="tabQueryBtn" class="flex-1 bg-blue-600 py-2 rounded-lg font-bold">相機/手動查詢模式</button>
             <button id="tabRegisterBtn" class="flex-1 bg-gray-600 py-2 rounded-lg font-bold">參數建檔模式</button>
         </div>
 
-        <!-- ================= 區塊 1：相機查詢 ================= -->
+        <!-- ================= 區塊 1：相機/選單查詢 ================= -->
         <div id="querySection" class="block">
             <div class="bg-gray-700 p-4 rounded-xl mb-6 shadow-lg border border-gray-600">
-                <h2 class="text-xl mb-4 font-bold text-yellow-400">📷 構件相機自動分析</h2>
+                <h2 class="text-xl mb-4 font-bold text-yellow-400">📷 構件參數查詢</h2>
+                
+                <!-- 方式 A：相機查詢 -->
                 <div class="flex items-center gap-4">
-                    <!-- 調用手機相機 -->
                     <input type="file" accept="image/*" capture="environment" id="cameraInput" class="hidden">
                     <button onclick="document.getElementById('cameraInput').click()" class="bg-green-600 hover:bg-green-500 px-6 py-4 rounded-lg font-bold shadow-lg w-full text-lg">
                         📸 點擊拍照並自動分析
                     </button>
                 </div>
                 <p id="analysisStatus" class="mt-4 text-sm text-gray-300"></p>
-                <p class="text-xs text-gray-400 mt-2">* 系統將自動抓取特徵並連動下方資料表</p>
+                <p class="text-xs text-gray-400 mt-2 mb-4">* 系統將自動抓取特徵並連動下方資料表</p>
+
+                <!-- 方式 B：下拉選單手動查詢 (唯讀資料庫清單) -->
+                <div class="mt-6 pt-4 border-t border-gray-600">
+                    <label class="block text-gray-400 mb-2 font-bold">🔍 或從資料庫手動選擇構件：</label>
+                    <select id="itemSelect" class="w-full bg-gray-800 p-3 rounded-lg border border-gray-500 text-white font-bold focus:ring-2 focus:ring-blue-500">
+                        <option value="">-- 資料載入中... --</option>
+                    </select>
+                </div>
             </div>
 
             <!-- 查詢結果展示區 (左中右佈局) -->
@@ -40,9 +49,9 @@
                     <h3 class="font-bold mb-3 text-blue-300">左側：構件圖片與槍粉量數據</h3>
                     
                     <!-- 構件匹配圖片 (唯讀) -->
-                    <div class="mb-4 bg-gray-800 p-2 rounded text-center border border-gray-600">
+                    <div id="imageContainer" class="mb-4 bg-gray-800 p-2 rounded text-center border border-gray-600 hidden">
                         <span class="text-gray-400 text-xs block mb-2">匹配之構件圖片</span>
-                        <img id="q_matched_image" src="" alt="構件圖片" class="mx-auto rounded h-40 w-full object-cover hidden shadow-md">
+                        <img id="q_matched_image" src="" alt="構件圖片" class="mx-auto rounded h-40 w-full object-cover shadow-md">
                     </div>
 
                     <!-- 槍粉量數據 (左側1-4，右側5-8) -->
@@ -168,23 +177,26 @@
                     <div class="border-t border-gray-600 pt-4"><h3 class="text-yellow-300 mb-2">往復機運行參數</h3></div>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-2">
-                            <input type="number" id="speed_left" placeholder="左上下速度(百)" max="999" class="w-full bg-gray-800 p-2 rounded">
+                            <!-- 加入預設值 600, 380 -->
+                            <input type="number" id="speed_left" value="600" placeholder="左上下速度(百)" max="999" class="w-full bg-gray-800 p-2 rounded">
                             <input type="number" id="up_turn_left" placeholder="左上換向點(千)" max="9999" class="w-full bg-gray-800 p-2 rounded">
                             <input type="number" id="down_turn_left" placeholder="左下換向點(千)" max="9999" class="w-full bg-gray-800 p-2 rounded">
-                            <input type="number" id="dist_left" placeholder="左工件距離(百)" max="999" class="w-full bg-gray-800 p-2 rounded">
+                            <input type="number" id="dist_left" value="380" placeholder="左工件距離(百)" max="999" class="w-full bg-gray-800 p-2 rounded">
                         </div>
                         <div class="space-y-2">
-                            <input type="number" id="speed_right" placeholder="右上下速度(百)" max="999" class="w-full bg-gray-800 p-2 rounded">
+                            <!-- 加入預設值 600, 420 -->
+                            <input type="number" id="speed_right" value="600" placeholder="右上下速度(百)" max="999" class="w-full bg-gray-800 p-2 rounded">
                             <input type="number" id="up_turn_right" placeholder="右上換向點(千)" max="9999" class="w-full bg-gray-800 p-2 rounded">
                             <input type="number" id="down_turn_right" placeholder="右下換向點(千)" max="9999" class="w-full bg-gray-800 p-2 rounded">
-                            <input type="number" id="dist_right" placeholder="右工件距離(百)" max="999" class="w-full bg-gray-800 p-2 rounded">
+                            <input type="number" id="dist_right" value="420" placeholder="右工件距離(百)" max="999" class="w-full bg-gray-800 p-2 rounded">
                         </div>
                     </div>
 
                     <div class="border-t border-gray-600 pt-4"><h3 class="text-red-300 mb-2">電壓與電流 (0-99)</h3></div>
                     <div class="grid grid-cols-2 gap-4">
-                        <input type="number" id="voltage" placeholder="電壓" max="99" class="w-full bg-gray-800 p-2 rounded">
-                        <input type="number" id="current" placeholder="電流" max="99" class="w-full bg-gray-800 p-2 rounded">
+                        <!-- 加入預設值 70, 15 -->
+                        <input type="number" id="voltage" value="70" placeholder="電壓" max="99" class="w-full bg-gray-800 p-2 rounded">
+                        <input type="number" id="current" value="15" placeholder="電流" max="99" class="w-full bg-gray-800 p-2 rounded">
                     </div>
 
                     <div class="border-t border-gray-600 pt-4"><h3 class="text-gray-300 mb-2">備註</h3></div>
@@ -211,6 +223,30 @@
         const supabaseKey = 'sb_publishable_qUCcWVbzo-99rP85r_RhQg_EGewmxB4'
         const supabase = createClient(supabaseUrl, supabaseKey)
 
+        // ================= 載入下拉式選單 (讀取資料庫所有構件) =================
+        async function loadItemsToSelect() {
+            const selectEl = document.getElementById('itemSelect');
+            const { data, error } = await supabase.from('coating_params').select('*').order('created_at', { ascending: false });
+            
+            if (error) {
+                selectEl.innerHTML = '<option value="">載入失敗，請檢查網路狀態</option>';
+                return;
+            }
+            
+            selectEl.innerHTML = '<option value="">-- 請選擇已建檔之構件 --</option>';
+            data.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = item.item_name;
+                // 將整筆資料存入 dataset 供選擇時調用
+                opt.dataset.info = JSON.stringify(item);
+                selectEl.appendChild(opt);
+            });
+        }
+        
+        // 網頁載入時自動執行抓取清單
+        loadItemsToSelect();
+
         // 頁籤切換邏輯
         const tabQueryBtn = document.getElementById('tabQueryBtn');
         const tabRegisterBtn = document.getElementById('tabRegisterBtn');
@@ -231,20 +267,63 @@
             tabQueryBtn.classList.replace('bg-blue-600', 'bg-gray-600');
         });
 
+        // ================= 共用顯示資料函數 =================
+        function displayData(match) {
+            document.getElementById('resultBoard').style.display = 'grid';
+            document.getElementById('remarkBoard').style.display = 'grid';
+
+            const fields = ['gun_1','gun_2','gun_3','gun_4','gun_5','gun_6','gun_7','gun_8',
+                            'speed_left','speed_right','up_turn_left','up_turn_right',
+                            'down_turn_left','down_turn_right','dist_left','dist_right',
+                            'voltage','current','remark_1','remark_2','remark_3'];
+            
+            fields.forEach(field => {
+                const el = document.getElementById('q_' + field);
+                if(el) el.innerText = match[field] || '0';
+            });
+        }
+
+        // ================= 下拉選單查詢邏輯 =================
+        document.getElementById('itemSelect').addEventListener('change', (e) => {
+            if(!e.target.value) {
+                document.getElementById('resultBoard').style.display = 'none';
+                document.getElementById('remarkBoard').style.display = 'none';
+                document.getElementById('analysisStatus').innerText = '';
+                return;
+            }
+
+            // 取得掛載在 option 上的資料
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            const match = JSON.parse(selectedOption.dataset.info);
+            
+            const status = document.getElementById('analysisStatus');
+            status.className = "mt-4 text-sm font-bold text-green-400";
+            status.innerText = `✅ 手動查詢成功！選定構件：${match.item_name}`;
+
+            // 隱藏相機圖片區域 (因為是下拉選擇，沒有拍照)
+            document.getElementById('imageContainer').classList.add('hidden');
+
+            displayData(match);
+        });
+
         // ================= 相機自動分析 (包含相片讀取顯示) =================
         document.getElementById('cameraInput').addEventListener('change', async (e) => {
             if(e.target.files.length > 0) {
+                // 重置下拉選單
+                document.getElementById('itemSelect').value = "";
+
                 const file = e.target.files[0];
                 const status = document.getElementById('analysisStatus');
+                status.className = "mt-4 text-sm font-bold text-yellow-400";
                 status.innerText = "🔄 影像特徵分析中，正在匹配資料庫...";
-                status.classList.replace('text-gray-300', 'text-yellow-400');
 
                 // 立即在前端顯示拍攝的照片
                 const reader = new FileReader();
                 reader.onload = function(evt) {
+                    const imgContainer = document.getElementById('imageContainer');
                     const imgEl = document.getElementById('q_matched_image');
                     imgEl.src = evt.target.result;
-                    imgEl.classList.remove('hidden');
+                    imgContainer.classList.remove('hidden');
                 };
                 reader.readAsDataURL(file);
                 
@@ -254,28 +333,16 @@
                     const { data, error } = await supabase.from('coating_params').select('*').limit(1).order('created_at', { ascending: false });
                     
                     if(error || data.length === 0) {
+                        status.className = "mt-4 text-sm font-bold text-red-400";
                         status.innerText = "❌ 找不到符合的構件參數，請確認構件是否已建檔。";
-                        status.classList.replace('text-yellow-400', 'text-red-400');
                         return;
                     }
 
                     const match = data[0];
-                    status.innerText = `✅ 分析成功！匹配構件：${match.item_name}`;
-                    status.classList.replace('text-yellow-400', 'text-green-400');
+                    status.className = "mt-4 text-sm font-bold text-green-400";
+                    status.innerText = `✅ 影像分析成功！匹配構件：${match.item_name}`;
 
-                    // 渲染數據到畫面
-                    document.getElementById('resultBoard').style.display = 'grid';
-                    document.getElementById('remarkBoard').style.display = 'grid';
-
-                    const fields = ['gun_1','gun_2','gun_3','gun_4','gun_5','gun_6','gun_7','gun_8',
-                                    'speed_left','speed_right','up_turn_left','up_turn_right',
-                                    'down_turn_left','down_turn_right','dist_left','dist_right',
-                                    'voltage','current','remark_1','remark_2','remark_3'];
-                    
-                    fields.forEach(field => {
-                        const el = document.getElementById('q_' + field);
-                        if(el) el.innerText = match[field] || '0';
-                    });
+                    displayData(match);
                 }, 1500);
             }
         });
@@ -316,7 +383,8 @@
                 alert('儲存失敗：' + error.message);
             } else {
                 alert('✅ 參數建檔成功！');
-                document.getElementById('paramForm').reset();
+                document.getElementById('paramForm').reset(); // 重置表單 (會自動帶回 HTML 中設定的 value 預設值)
+                loadItemsToSelect(); // 重新整理下拉選單清單
             }
         });
     </script>
