@@ -35,55 +35,94 @@
             <!-- 查詢結果展示區 (左中右佈局) -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="resultBoard" style="display:none;">
                 
-                <!-- 左側：自動槍粉量 (十位數) -->
-                <div class="bg-gray-700 p-4 rounded-xl border border-blue-500">
-                    <h3 class="font-bold mb-3 text-blue-300">左側：自動槍粉量數據</h3>
+                <!-- 第一欄 (左側)：匹配圖片與自動槍粉量 -->
+                <div class="bg-gray-700 p-4 rounded-xl border border-blue-500 flex flex-col">
+                    <h3 class="font-bold mb-3 text-blue-300">左側：構件圖片與槍粉量數據</h3>
+                    
+                    <!-- 構件匹配圖片 (唯讀) -->
+                    <div class="mb-4 bg-gray-800 p-2 rounded text-center border border-gray-600">
+                        <span class="text-gray-400 text-xs block mb-2">匹配之構件圖片</span>
+                        <img id="q_matched_image" src="" alt="構件圖片" class="mx-auto rounded h-40 w-full object-cover hidden shadow-md">
+                    </div>
+
+                    <!-- 槍粉量數據 (左側1-4，右側5-8) -->
                     <div class="grid grid-cols-2 gap-2 text-center text-sm">
-                        <div class="bg-gray-800 p-2 rounded">1號: <span id="q_gun_1" class="text-green-400 text-lg"></span></div>
-                        <div class="bg-gray-800 p-2 rounded">2號: <span id="q_gun_2" class="text-green-400 text-lg"></span></div>
-                        <div class="bg-gray-800 p-2 rounded">3號: <span id="q_gun_3" class="text-green-400 text-lg"></span></div>
-                        <div class="bg-gray-800 p-2 rounded">4號: <span id="q_gun_4" class="text-green-400 text-lg"></span></div>
-                        <div class="bg-gray-800 p-2 rounded">5號: <span id="q_gun_5" class="text-green-400 text-lg"></span></div>
-                        <div class="bg-gray-800 p-2 rounded">6號: <span id="q_gun_6" class="text-green-400 text-lg"></span></div>
-                        <div class="bg-gray-800 p-2 rounded">7號: <span id="q_gun_7" class="text-green-400 text-lg"></span></div>
-                        <div class="bg-gray-800 p-2 rounded">8號: <span id="q_gun_8" class="text-green-400 text-lg"></span></div>
+                        <!-- 左半部 1~4 -->
+                        <div class="space-y-2">
+                            <div class="bg-gray-800 p-2 rounded flex justify-between px-2 items-center">
+                                <span class="text-gray-400">1號:</span> <span id="q_gun_1" class="text-green-400 text-lg font-bold"></span>
+                            </div>
+                            <div class="bg-gray-800 p-2 rounded flex justify-between px-2 items-center">
+                                <span class="text-gray-400">2號:</span> <span id="q_gun_2" class="text-green-400 text-lg font-bold"></span>
+                            </div>
+                            <div class="bg-gray-800 p-2 rounded flex justify-between px-2 items-center">
+                                <span class="text-gray-400">3號:</span> <span id="q_gun_3" class="text-green-400 text-lg font-bold"></span>
+                            </div>
+                            <div class="bg-gray-800 p-2 rounded flex justify-between px-2 items-center">
+                                <span class="text-gray-400">4號:</span> <span id="q_gun_4" class="text-green-400 text-lg font-bold"></span>
+                            </div>
+                        </div>
+                        <!-- 右半部 5~8 -->
+                        <div class="space-y-2">
+                            <div class="bg-gray-800 p-2 rounded flex justify-between px-2 items-center">
+                                <span class="text-gray-400">5號:</span> <span id="q_gun_5" class="text-green-400 text-lg font-bold"></span>
+                            </div>
+                            <div class="bg-gray-800 p-2 rounded flex justify-between px-2 items-center">
+                                <span class="text-gray-400">6號:</span> <span id="q_gun_6" class="text-green-400 text-lg font-bold"></span>
+                            </div>
+                            <div class="bg-gray-800 p-2 rounded flex justify-between px-2 items-center">
+                                <span class="text-gray-400">7號:</span> <span id="q_gun_7" class="text-green-400 text-lg font-bold"></span>
+                            </div>
+                            <div class="bg-gray-800 p-2 rounded flex justify-between px-2 items-center">
+                                <span class="text-gray-400">8號:</span> <span id="q_gun_8" class="text-green-400 text-lg font-bold"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 中間：往復機運行參數 -->
+                <!-- 第二欄 (中間)：往復機運行參數 -->
                 <div class="bg-gray-700 p-4 rounded-xl border border-yellow-500">
                     <h3 class="font-bold mb-3 text-yellow-300">中間：往復機運行參數</h3>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between bg-gray-800 p-2 rounded">
-                            <span>上下速度 (百)</span>
-                            <span>左1: <b id="q_speed_left" class="text-yellow-400"></b> | 右2: <b id="q_speed_right" class="text-yellow-400"></b></span>
+                    <div class="space-y-3 text-sm">
+                        <!-- 上下速度 -->
+                        <div class="flex items-center justify-between bg-gray-800 p-3 rounded">
+                            <span class="w-1/3 text-left text-yellow-400 font-mono">左1: <b id="q_speed_left" class="text-lg"></b></span>
+                            <span class="w-1/3 text-center text-gray-200">上下速度<br><span class="text-xs text-gray-500">(百)</span></span>
+                            <span class="w-1/3 text-right text-yellow-400 font-mono">右2: <b id="q_speed_right" class="text-lg"></b></span>
                         </div>
-                        <div class="flex justify-between bg-gray-800 p-2 rounded">
-                            <span>上換向點 (千)</span>
-                            <span>左1: <b id="q_up_turn_left" class="text-yellow-400"></b> | 右2: <b id="q_up_turn_right" class="text-yellow-400"></b></span>
+                        <!-- 上換向點 -->
+                        <div class="flex items-center justify-between bg-gray-800 p-3 rounded">
+                            <span class="w-1/3 text-left text-yellow-400 font-mono">左1: <b id="q_up_turn_left" class="text-lg"></b></span>
+                            <span class="w-1/3 text-center text-gray-200">上換向點<br><span class="text-xs text-gray-500">(千)</span></span>
+                            <span class="w-1/3 text-right text-yellow-400 font-mono">右2: <b id="q_up_turn_right" class="text-lg"></b></span>
                         </div>
-                        <div class="flex justify-between bg-gray-800 p-2 rounded">
-                            <span>下換向點 (千)</span>
-                            <span>左1: <b id="q_down_turn_left" class="text-yellow-400"></b> | 右2: <b id="q_down_turn_right" class="text-yellow-400"></b></span>
+                        <!-- 下換向點 -->
+                        <div class="flex items-center justify-between bg-gray-800 p-3 rounded">
+                            <span class="w-1/3 text-left text-yellow-400 font-mono">左1: <b id="q_down_turn_left" class="text-lg"></b></span>
+                            <span class="w-1/3 text-center text-gray-200">下換向點<br><span class="text-xs text-gray-500">(千)</span></span>
+                            <span class="w-1/3 text-right text-yellow-400 font-mono">右2: <b id="q_down_turn_right" class="text-lg"></b></span>
                         </div>
-                        <div class="flex justify-between bg-gray-800 p-2 rounded">
-                            <span>工件距離 (百)</span>
-                            <span>左1: <b id="q_dist_left" class="text-yellow-400"></b> | 右2: <b id="q_dist_right" class="text-yellow-400"></b></span>
+                        <!-- 工件距離 -->
+                        <div class="flex items-center justify-between bg-gray-800 p-3 rounded">
+                            <span class="w-1/3 text-left text-yellow-400 font-mono">左1: <b id="q_dist_left" class="text-lg"></b></span>
+                            <span class="w-1/3 text-center text-gray-200">工件距離<br><span class="text-xs text-gray-500">(百)</span></span>
+                            <span class="w-1/3 text-right text-yellow-400 font-mono">右2: <b id="q_dist_right" class="text-lg"></b></span>
                         </div>
                     </div>
                 </div>
 
-                <!-- 右側：電壓電流 -->
+                <!-- 第三欄 (右側)：電壓電流 -->
                 <div class="bg-gray-700 p-4 rounded-xl border border-red-500">
                     <h3 class="font-bold mb-3 text-red-300">右側：自動槍電壓/電流</h3>
-                    <div class="space-y-3">
-                        <div class="bg-gray-800 p-4 rounded text-center">
-                            <div class="text-gray-400 text-sm">電壓 (十位數)</div>
-                            <div class="text-3xl text-red-400 font-bold" id="q_voltage"></div>
+                    <!-- 並排呈現 -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-gray-800 p-4 rounded flex flex-col items-center justify-center h-32">
+                            <div class="text-gray-400 text-sm mb-2">電壓 (十位數)</div>
+                            <div class="text-4xl text-red-400 font-bold" id="q_voltage"></div>
                         </div>
-                        <div class="bg-gray-800 p-4 rounded text-center">
-                            <div class="text-gray-400 text-sm">電流 (十位數)</div>
-                            <div class="text-3xl text-red-400 font-bold" id="q_current"></div>
+                        <div class="bg-gray-800 p-4 rounded flex flex-col items-center justify-center h-32">
+                            <div class="text-gray-400 text-sm mb-2">電流 (十位數)</div>
+                            <div class="text-4xl text-red-400 font-bold" id="q_current"></div>
                         </div>
                     </div>
                 </div>
@@ -91,9 +130,9 @@
 
             <!-- 下方備註 -->
             <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4" id="remarkBoard" style="display:none;">
-                <div class="bg-gray-700 p-3 rounded"><span class="text-gray-400 text-sm">備註一：</span><div id="q_remark_1"></div></div>
-                <div class="bg-gray-700 p-3 rounded"><span class="text-gray-400 text-sm">備註二：</span><div id="q_remark_2"></div></div>
-                <div class="bg-gray-700 p-3 rounded"><span class="text-gray-400 text-sm">備註三：</span><div id="q_remark_3"></div></div>
+                <div class="bg-gray-700 p-3 rounded border-l-4 border-gray-500"><span class="text-gray-400 text-sm">備註一：</span><div id="q_remark_1" class="text-lg mt-1"></div></div>
+                <div class="bg-gray-700 p-3 rounded border-l-4 border-gray-500"><span class="text-gray-400 text-sm">備註二：</span><div id="q_remark_2" class="text-lg mt-1"></div></div>
+                <div class="bg-gray-700 p-3 rounded border-l-4 border-gray-500"><span class="text-gray-400 text-sm">備註三：</span><div id="q_remark_3" class="text-lg mt-1"></div></div>
             </div>
         </div>
 
@@ -167,7 +206,7 @@
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
         
-        // Supabase 初始化 (這是在前端安全的配置，請勿在此寫入資料庫密碼)
+        // Supabase 初始化
         const supabaseUrl = 'https://wxdrtnqizpbjfugdaglb.supabase.co'
         const supabaseKey = 'sb_publishable_qUCcWVbzo-99rP85r_RhQg_EGewmxB4'
         const supabase = createClient(supabaseUrl, supabaseKey)
@@ -192,16 +231,26 @@
             tabQueryBtn.classList.replace('bg-blue-600', 'bg-gray-600');
         });
 
-        // ================= 相機自動分析 (模擬 AI 匹配) =================
+        // ================= 相機自動分析 (包含相片讀取顯示) =================
         document.getElementById('cameraInput').addEventListener('change', async (e) => {
             if(e.target.files.length > 0) {
+                const file = e.target.files[0];
                 const status = document.getElementById('analysisStatus');
                 status.innerText = "🔄 影像特徵分析中，正在匹配資料庫...";
                 status.classList.replace('text-gray-300', 'text-yellow-400');
+
+                // 立即在前端顯示拍攝的照片
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const imgEl = document.getElementById('q_matched_image');
+                    imgEl.src = evt.target.result;
+                    imgEl.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
                 
                 // 模擬 AI 分析延遲
                 setTimeout(async () => {
-                    // 從資料庫隨機撈取一筆最符合的資料 (實際應用中此處應發送圖片給後端 AI 模型)
+                    // 撈取資料庫
                     const { data, error } = await supabase.from('coating_params').select('*').limit(1).order('created_at', { ascending: false });
                     
                     if(error || data.length === 0) {
