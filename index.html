@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>條碼與 QR Code 及回報產生器</title>
+    <title>條碼、QR Code 與資訊組合產生器</title>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <style>
@@ -18,87 +18,90 @@
         }
         .container { max-width: 900px; margin: 0 auto; }
         h1 { text-align: center; color: #2c3e50; }
-        
-        /* 控制面板區塊共用樣式 */
-        .control-panel { 
+        h2 { color: #34495e; font-size: 1.3em; margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+
+        /* 通用面板區塊樣式 */
+        .panel { 
             background: white; 
             padding: 20px; 
             border-radius: 10px; 
             box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
             margin-bottom: 30px; 
         }
-        
-        .barcode-panel {
+
+        /* 資訊組合器專用樣式 */
+        .builder-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .input-group label {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        .sub-input-row {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .sub-input-row select {
+            flex: 1;
+        }
+        .sub-input-row input {
+            width: 70px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .preview-box {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            font-size: 16px;
+            color: #1e293b;
+            margin-bottom: 15px;
+            min-height: 60px;
+        }
+        .action-bar {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* 控制面板區塊 (條碼/QR) */
+        .control-panel { 
             display: flex; 
             gap: 10px; 
             flex-wrap: wrap; 
         }
-
-        .report-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .report-title {
-            margin-top: 0;
-            margin-bottom: 5px;
-            font-size: 1.2em;
-            color: #2c3e50;
-            border-bottom: 2px solid #f0f0f0;
-            padding-bottom: 10px;
-        }
-
-        .form-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .date-label {
-            font-weight: bold;
-            font-size: 18px;
-            color: #3b82f6;
-            min-width: 45px;
-        }
-
-        input[type="text"], input[type="number"], select, button { 
-            padding: 12px; 
-            border: 1px solid #ddd; 
+        input[type="text"], select, button { 
+            padding: 12px 20px; 
+            border: none; 
             border-radius: 6px; 
             font-size: 16px; 
+            cursor: pointer; 
             transition: all 0.2s ease;
         }
-        
-        input[type="text"] { flex: 1; min-width: 200px; }
-        select { background: #eee; outline: none; cursor: pointer; }
-        button { cursor: pointer; border: none; font-weight: bold; }
-        
-        /* 特定按鈕顏色 */
-        button.add-btn { background: #10b981; color: white; padding: 12px 20px; }
-        button.add-btn:hover { background: #059669; }
-        
-        button.copy-btn { background: #8b5cf6; color: white; align-self: stretch; padding: 12px 25px; }
-        button.copy-btn:hover { background: #7c3aed; }
-
-        textarea {
-            flex: 1;
-            min-width: 250px;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 16px;
-            font-family: inherit;
-            resize: vertical;
-            background-color: #f9f9f9;
+        input[type="text"] { 
+            flex: 1; 
+            border: 1px solid #ddd; 
+            min-width: 200px;
         }
-
-        /* 動態隱藏與單位標籤 */
-        .hidden { display: none !important; }
-        .input-group { display: flex; align-items: center; gap: 5px; }
-        .input-group input[type="number"] { width: 80px; padding: 10px; }
-        .unit-label { font-size: 15px; font-weight: bold; color: #555; }
+        select { background: #eee; outline: none; }
+        button.add-btn { background: #10b981; color: white; font-weight: bold; }
+        button.add-btn:hover { background: #059669; }
+        button.copy-btn { background: #8b5cf6; color: white; font-weight: bold; flex: 1; }
+        button.copy-btn:hover { background: #7c3aed; }
 
         /* 卡片顯示區域 */
         .grid { 
@@ -139,188 +142,181 @@
 <body>
 
     <div class="container">
-        <h1>工具面板集合</h1>
+        <h1>條碼、QR Code 與資訊組合產生器</h1>
         
-        <!-- 字串回報產生器區塊 -->
-        <div class="control-panel report-panel">
-            <h2 class="report-title">📝 狀態回報字串產生器</h2>
-            
-            <!-- 第一行：日期與站所 -->
-            <div class="form-row">
-                <span id="currentDateDisplay" class="date-label"></span>
-                <select id="locationSelect">
-                    <option value="潮州中洲">潮州中洲</option>
-                    <option value="潮州光華">潮州光華</option>
-                    <option value="潮州大同">潮州大同</option>
-                    <option value="潮州光春">潮州光春</option>
-                    <option value="潮州愛國">潮州愛國</option>
-                    <option value="潮州四維">潮州四維</option>
-                    <option value="潮州文化">潮州文化</option>
-                    <option value="潮州延平">潮州延平</option>
-                    <option value="潮州太平">潮州太平</option>
-                    <option value="潮州新生">潮州新生</option>
-                </select>
-            </div>
+        <!-- 新增：批次資訊組合產生器 -->
+        <div class="panel">
+            <h2>📦 物流/回報資訊快速組合器</h2>
+            <div class="builder-grid">
+                <!-- 第一行 -->
+                <div class="input-group">
+                    <label>第一行：日期與地點</label>
+                    <div class="sub-input-row">
+                        <input type="text" id="dateInput" placeholder="日期" style="width: 80px;" />
+                        <select id="locationSelect" style="flex: 1;">
+                            <option value="潮州中洲">潮州中洲</option>
+                            <option value="潮州光華">潮州光華</option>
+                            <option value="潮州大同">潮州大同</option>
+                            <option value="潮州光春">潮州光春</option>
+                            <option value="潮州愛國">潮州愛國</option>
+                            <option value="潮州四維">潮州四維</option>
+                            <option value="潮州文化">潮州文化</option>
+                            <option value="潮州延平">潮州延平</option>
+                            <option value="潮州太平">潮州太平</option>
+                            <option value="潮州新生">潮州新生</option>
+                        </select>
+                    </div>
+                </div>
 
-            <!-- 第二行：狀態1 -->
-            <div class="form-row">
-                <select id="status1" onchange="toggleInputs('1')">
-                    <option value="無">無</option>
-                    <option value="stay_box">滯留（手動輸入）箱</option>
-                    <option value="stay_box_loose">滯留（手動輸入）箱（手動輸入）裸</option>
-                    <option value="無滯留">無滯留</option>
-                    <option value="無到貨">無到貨</option>
-                    <option value="無櫃位">無櫃位</option>
-                    <option value="無合適櫃位">無合適櫃位</option>
-                    <option value="束帶×">束帶×</option>
-                    <option value="無束帶×">無束帶×</option>
-                </select>
-                
-                <div id="inputGroup1" class="input-group hidden">
-                    <input type="number" id="box1" min="0" placeholder="0"> 
-                    <span class="unit-label">箱</span>
-                    
-                    <input type="number" id="loose1" min="0" placeholder="0" class="loose-field hidden"> 
-                    <span id="loose1Unit" class="unit-label hidden">裸</span>
+                <!-- 第二行 -->
+                <div class="input-group">
+                    <label>第二行：狀態一</label>
+                    <div class="sub-input-row">
+                        <select id="status1Select" onchange="handleSelectChange('status1', this.value)">
+                            <option value="無">無</option>
+                            <option value="滯留_箱">滯留箱</option>
+                            <option value="滯留_箱_裸">滯留箱（含裸）</option>
+                            <option value="無滯留">無滯留</option>
+                            <option value="無到貨">無到貨</option>
+                            <option value="無櫃位">無櫃位</option>
+                            <option value="無合適櫃位">無合適櫃位</option>
+                            <option value="束帶×">束帶×</option>
+                            <option value="無束帶×">無束帶×</option>
+                        </select>
+                        <input type="text" id="status1_num1" placeholder="箱數" style="display:none;" />
+                        <input type="text" id="status1_num2" placeholder="裸數" style="display:none;" />
+                    </div>
+                </div>
+
+                <!-- 第三行 -->
+                <div class="input-group">
+                    <label>第三行：狀態二</label>
+                    <div class="sub-input-row">
+                        <select id="status2Select" onchange="handleSelectChange('status2', this.value)">
+                            <option value="無">無</option>
+                            <option value="滯留_箱">滯留箱</option>
+                            <option value="滯留_箱_裸">滯留箱（含裸）</option>
+                            <option value="無滯留">無滯留</option>
+                            <option value="無到貨">無到貨</option>
+                            <option value="無櫃位">無櫃位</option>
+                            <option value="無合適櫃位">無合適櫃位</option>
+                            <option value="束帶×">束帶×</option>
+                            <option value="無束帶×">無束帶×</option>
+                        </select>
+                        <input type="text" id="status2_num1" placeholder="箱數" style="display:none;" />
+                        <input type="text" id="status2_num2" placeholder="裸數" style="display:none;" />
+                    </div>
                 </div>
             </div>
 
-            <!-- 第三行：狀態2 -->
-            <div class="form-row">
-                <select id="status2" onchange="toggleInputs('2')">
-                    <option value="無">無</option>
-                    <option value="stay_box">滯留（手動輸入）箱</option>
-                    <option value="stay_box_loose">滯留（手動輸入）箱（手動輸入）裸</option>
-                    <option value="無滯留">無滯留</option>
-                    <option value="無到貨">無到貨</option>
-                    <option value="無櫃位">無櫃位</option>
-                    <option value="無合適櫃位">無合適櫃位</option>
-                    <option value="束帶×">束帶×</option>
-                    <option value="無束帶×">無束帶×</option>
-                </select>
-                
-                <div id="inputGroup2" class="input-group hidden">
-                    <input type="number" id="box2" min="0" placeholder="0"> 
-                    <span class="unit-label">箱</span>
-                    
-                    <input type="number" id="loose2" min="0" placeholder="0" class="loose-field hidden"> 
-                    <span id="loose2Unit" class="unit-label hidden">裸</span>
-                </div>
-            </div>
+            <label style="font-size: 0.9em; font-weight: 600; color: #4a5568; display: block; margin-bottom: 5px;">即時預覽結果：</label>
+            <div class="preview-box" id="previewText"></div>
 
-            <!-- 產生與複製區域 -->
-            <div class="form-row" style="align-items: stretch;">
-                <textarea id="outputText" rows="4" placeholder="點擊按鈕產生並複製字串..." readonly></textarea>
-                <button class="copy-btn" onclick="generateAndCopy()">產生並複製<br>字串</button>
+            <div class="action-bar">
+                <button class="copy-btn" onclick="copyResult()">📋 複製文字結果</button>
             </div>
         </div>
 
-        <!-- 條碼 & QR Code 產生器區塊 -->
-        <div class="control-panel barcode-panel">
-            <h2 class="report-title" style="width: 100%; border:none; padding:0; margin:0;">🏷️ 條碼 & QR Code 產生器</h2>
-            <input type="text" id="inputValue" placeholder="請輸入任意值 (網址、文字、編號)..." style="margin-top: 10px;" />
-            <select id="codeType" style="margin-top: 10px;">
-                <option value="qrcode">QR Code</option>
-                <option value="barcode">條碼 (Barcode)</option>
-            </select>
-            <button class="add-btn" onclick="generateCode()" style="margin-top: 10px;">新增圖片</button>
+        <!-- 原有：條碼與 QR Code 產生器 -->
+        <div class="panel">
+            <h2>🏷️ 條碼與 QR Code 產生器</h2>
+            <div class="control-panel">
+                <input type="text" id="inputValue" placeholder="請輸入任意值 (網址、文字、編號)..." />
+                <select id="codeType">
+                    <option value="qrcode">QR Code</option>
+                    <option value="barcode">條碼 (Barcode)</option>
+                </select>
+                <button class="add-btn" onclick="generateCode()">新增產生</button>
+            </div>
         </div>
 
         <div class="grid" id="codeGrid"></div>
     </div>
 
     <script>
-        /* ================= 狀態回報字串產生器邏輯 ================= */
-        
-        // 頁面載入時自動帶入當天日期 (M/D)
-        document.addEventListener('DOMContentLoaded', () => {
-            const today = new Date();
-            const dateStr = `${today.getMonth() + 1}/${today.getDate()}`;
-            document.getElementById('currentDateDisplay').textContent = dateStr;
+        // 初始化自動帶出當天日期 (格式 M/D，如 7/29)
+        window.addEventListener('DOMContentLoaded', () => {
+            const now = new Date();
+            const month = now.getMonth() + 1;
+            const day = now.getDate();
+            document.getElementById('dateInput').value = `${month}/${day}`;
+            updatePreview();
+
+            // 監聽所有輸入與下拉變動，自動即時更新預覽
+            document.querySelectorAll('input, select').forEach(element => {
+                element.addEventListener('input', updatePreview);
+                element.addEventListener('change', updatePreview);
+            });
         });
 
-        // 依據下拉選單動態顯示數字輸入框
-        function toggleInputs(rowNum) {
-            const status = document.getElementById(`status${rowNum}`).value;
-            const group = document.getElementById(`inputGroup${rowNum}`);
-            const looseInput = document.getElementById(`loose${rowNum}`);
-            const looseUnit = document.getElementById(`loose${rowNum}Unit`);
-
-            if (status === 'stay_box') {
-                group.classList.remove('hidden');
-                looseInput.classList.add('hidden');
-                looseUnit.classList.add('hidden');
-            } else if (status === 'stay_box_loose') {
-                group.classList.remove('hidden');
-                looseInput.classList.remove('hidden');
-                looseUnit.classList.remove('hidden');
-            } else {
-                group.classList.add('hidden');
-            }
-        }
-
-        // 產生字串並複製
-        function generateAndCopy() {
-            const dateStr = document.getElementById('currentDateDisplay').textContent;
-            const loc = document.getElementById('locationSelect').value;
-            let resultLines = [];
+        // 處理動態出現的手動輸入框
+        function handleSelectChange(prefix, value) {
+            const num1Input = document.getElementById(`${prefix}_num1`);
+            const num2Input = document.getElementById(`${prefix}_num2`);
             
-            // 加入第一行：日期與地點
-            resultLines.push(`${dateStr} ${loc}`);
+            num1Input.style.display = 'none';
+            num2Input.style.display = 'none';
 
-            // 處理第二行與第三行
-            for (let i = 1; i <= 2; i++) {
-                const status = document.getElementById(`status${i}`).value;
-                
-                if (status === '無') {
-                    continue; // 選擇無則省略此行
-                }
-
-                if (status === 'stay_box') {
-                    const boxNum = document.getElementById(`box${i}`).value || 0;
-                    resultLines.push(`滯留${boxNum}箱`);
-                } else if (status === 'stay_box_loose') {
-                    const boxNum = document.getElementById(`box${i}`).value || 0;
-                    const looseNum = document.getElementById(`loose${i}`).value || 0;
-                    resultLines.push(`滯留${boxNum}箱${looseNum}裸`);
-                } else {
-                    // 其他純文字選項直接帶入
-                    resultLines.push(status);
-                }
-            }
-
-            // 組合成最終字串
-            const finalString = resultLines.join('\n');
-            const textArea = document.getElementById('outputText');
-            textArea.value = finalString;
-
-            // 複製到剪貼簿邏輯
-            if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(finalString).then(() => {
-                    alert('✅ 複製成功！內容如下：\n\n' + finalString);
-                }).catch(err => {
-                    fallbackCopyText(textArea, finalString);
-                });
-            } else {
-                fallbackCopyText(textArea, finalString);
+            if (value === '滯留_箱') {
+                num1Input.style.display = 'block';
+                num1Input.placeholder = '箱數';
+            } else if (value === '滯留_箱_裸') {
+                num1Input.style.display = 'block';
+                num1Input.placeholder = '箱數';
+                num2Input.style.display = 'block';
+                num2Input.placeholder = '裸數';
+            } else if (value.includes('束帶×')) {
+                num1Input.style.display = 'block';
+                num1Input.placeholder = '數量';
             }
         }
 
-        // 傳統的複製方式作為備案
-        function fallbackCopyText(textArea, text) {
-            textArea.select();
-            textArea.setSelectionRange(0, 99999); // 給手機端相容
-            try {
-                document.execCommand('copy');
-                alert('✅ 複製成功！內容如下：\n\n' + text);
-            } catch (err) {
-                alert('⚠️ 複製失敗，請手動長按選取複製。');
-            }
-            window.getSelection().removeAllRanges(); // 複製完取消反白
+        // 產生格式化文字
+        function getFormattedText() {
+            const date = document.getElementById('dateInput').value.trim();
+            const location = document.getElementById('locationSelect').value;
+            
+            const line1 = `${date} ${location}`;
+            const line2 = formatStatusText('status1');
+            const line3 = formatStatusText('status2');
+
+            let result = line1;
+            if (line2) result += `\n${line2}`;
+            if (line3) result += `\n${line3}`;
+            return result;
         }
 
-        /* ================= 原本的條碼與 QR Code 產生器邏輯 ================= */
+        function formatStatusText(prefix) {
+            const selectVal = document.getElementById(`${prefix}Select`).value;
+            const num1 = document.getElementById(`${prefix}_num1`).value.trim();
+            const num2 = document.getElementById(`${prefix}_num2`).value.trim();
 
+            if (selectVal === '無') return '';
+            
+            if (selectVal === '滯留_箱') {
+                return `滯留${num1 || '___'}箱`;
+            } else if (selectVal === '滯留_箱_裸') {
+                return `滯留${num1 || '___'}箱${num2 || '___'}裸`;
+            } else if (selectVal.includes('束帶×')) {
+                return `${selectVal}${num1 || '___'}`;
+            }
+            return selectVal;
+        }
+
+        function updatePreview() {
+            document.getElementById('previewText').textContent = getFormattedText();
+        }
+
+        function copyResult() {
+            const text = getFormattedText();
+            navigator.clipboard.writeText(text).then(() => {
+                alert('已成功複製文字至剪貼簿！');
+            }).catch(err => {
+                alert('複製失敗，請手動複製。');
+            });
+        }
+
+        // 條碼與 QR Code 產生邏輯
         function generateCode() {
             const inputField = document.getElementById('inputValue');
             const input = inputField.value.trim();
