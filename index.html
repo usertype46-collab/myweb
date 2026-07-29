@@ -3,140 +3,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>條碼即時產生器</title>
+    <title>即時條碼與 QR Code 產生器</title>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f7f6;
             color: #333;
-            text-align: center;
+            max-width: 900px;
+            margin: 0 auto;
             padding: 20px;
         }
-        h2 {
+        h1 {
+            text-align: center;
             color: #2c3e50;
         }
-        .input-group {
+        .section {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             margin-bottom: 30px;
         }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
         input[type="text"] {
+            flex: 1;
             padding: 10px;
             font-size: 16px;
-            width: 250px;
             border: 1px solid #ccc;
             border-radius: 4px;
-            outline: none;
         }
-        input[type="text"]:focus {
-            border-color: #3498db;
-        }
-        .generate-btn {
+        button {
             padding: 10px 20px;
             font-size: 16px;
-            background-color: #3498db;
-            color: white;
+            cursor: pointer;
             border: none;
             border-radius: 4px;
-            cursor: pointer;
+            color: #fff;
             transition: background 0.3s;
         }
-        .generate-btn:hover {
+        .btn-add {
+            background-color: #3498db;
+        }
+        .btn-add:hover {
             background-color: #2980b9;
         }
-        /* 條碼顯示區塊排版 */
-        #barcode-container {
+        .container {
             display: flex;
             flex-wrap: wrap;
-            justify-content: center;
             gap: 20px;
         }
-        .barcode-item {
-            background: white;
+        .item {
+            background: #fafafa;
             border: 1px solid #ddd;
             padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
             align-items: center;
+            min-width: 150px;
         }
-        .remove-btn {
-            margin-top: 10px;
+        .item canvas, .item svg {
+            margin-bottom: 10px;
+        }
+        .btn-remove {
             background-color: #e74c3c;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: background 0.3s;
+            font-size: 14px;
+            padding: 6px 12px;
         }
-        .remove-btn:hover {
+        .btn-remove:hover {
             background-color: #c0392b;
         }
     </style>
 </head>
 <body>
 
-    <h2>條碼即時產生器</h2>
-    
-    <div class="input-group">
-        <input type="text" id="inputValue" placeholder="請輸入任意值..." onkeydown="if(event.key === 'Enter') generateBarcode()">
-        <button class="generate-btn" onclick="generateBarcode()">產生條碼</button>
+    <h1>即時條碼與 QR Code 產生器</h1>
+
+    <div class="section">
+        <h2>一維條碼 (Barcode)</h2>
+        <div class="input-group">
+            <input type="text" id="barcodeInput" placeholder="請輸入任意值..." onkeypress="handleEnter(event, addBarcode)">
+            <button class="btn-add" onclick="addBarcode()">新增條碼</button>
+        </div>
+        <div class="container" id="barcodeContainer">
+            </div>
     </div>
 
-    <div id="barcode-container"></div>
+    <div class="section">
+        <h2>二維碼 (QR Code)</h2>
+        <div class="input-group">
+            <input type="text" id="qrInput" placeholder="請輸入任意值..." onkeypress="handleEnter(event, addQRCode)">
+            <button class="btn-add" onclick="addQRCode()">新增 QR Code</button>
+        </div>
+        <div class="container" id="qrContainer">
+            </div>
+    </div>
 
     <script>
-        function generateBarcode() {
-            const inputEl = document.getElementById('inputValue');
-            const value = inputEl.value.trim();
+        // 支援按下 Enter 鍵直接新增
+        function handleEnter(event, actionFunction) {
+            if (event.key === 'Enter') {
+                actionFunction();
+            }
+        }
 
+        // --- 條碼 (Barcode) 邏輯 ---
+        function addBarcode() {
+            const input = document.getElementById('barcodeInput');
+            const value = input.value.trim();
+            
             if (!value) {
-                alert('請先輸入內容！');
+                alert('請輸入有效的值！');
                 return;
             }
 
-            // 1. 建立外層容器 (Card)
+            const container = document.getElementById('barcodeContainer');
+            
+            // 建立外層容器
             const itemDiv = document.createElement('div');
-            itemDiv.className = 'barcode-item';
+            itemDiv.className = 'item';
 
-            // 2. 建立 SVG 元素讓 JsBarcode 渲染
-            const svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-
-            // 3. 建立移除按鈕
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'remove-btn';
-            removeBtn.textContent = '移除';
-            removeBtn.onclick = function() {
-                itemDiv.remove(); // 點擊時移除該條碼區塊
-            };
-
-            // 4. 將 SVG 和按鈕加入到外層容器中
-            itemDiv.appendChild(svgEl);
-            itemDiv.appendChild(removeBtn);
-
-            // 5. 將整個區塊加入到網頁中
-            document.getElementById('barcode-container').prepend(itemDiv); // 使用 prepend 讓最新的在最前面
-
-            // 6. 使用 JsBarcode 產生條碼
+            // 建立 SVG 元素供 JsBarcode 繪製
+            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            
             try {
-                JsBarcode(svgEl, value, {
-                    format: "CODE128", // CODE128 支援大小寫英文、數字與符號，最適合任意值
-                    lineColor: "#000",
-                    width: 2,
-                    height: 60,
+                // 使用預設的 CODE128 格式，支援大部分英數字與符號
+                JsBarcode(svg, value, {
+                    format: "CODE128",
                     displayValue: true,
-                    fontSize: 18
+                    fontSize: 18,
+                    margin: 10
                 });
             } catch (e) {
-                alert('產生失敗：包含不支援的字元（建議使用英數字）');
-                itemDiv.remove();
+                alert('無法產生此條碼，請確認輸入字元是否支援（建議使用英數字）。');
+                return;
             }
 
-            // 7. 清空輸入框，方便下次輸入
-            inputEl.value = '';
-            inputEl.focus();
+            // 建立移除按鈕
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'btn-remove';
+            removeBtn.innerText = '移除';
+            removeBtn.onclick = function() {
+                container.removeChild(itemDiv);
+            };
+
+            // 組裝元素
+            itemDiv.appendChild(svg);
+            itemDiv.appendChild(removeBtn);
+            container.appendChild(itemDiv);
+
+            // 清空輸入框
+            input.value = '';
+        }
+
+        // --- 二維碼 (QR Code) 邏輯 ---
+        function addQRCode() {
+            const input = document.getElementById('qrInput');
+            const value = input.value.trim();
+            
+            if (!value) {
+                alert('請輸入有效的值！');
+                return;
+            }
+
+            const container = document.getElementById('qrContainer');
+            
+            // 建立外層容器
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'item';
+
+            // 建立 div 供 QRCode.js 繪製
+            const qrDiv = document.createElement('div');
+            qrDiv.style.marginBottom = "10px";
+            
+            // 產生 QR Code
+            new QRCode(qrDiv, {
+                text: value,
+                width: 128,
+                height: 128,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+
+            // 建立移除按鈕
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'btn-remove';
+            removeBtn.innerText = '移除';
+            removeBtn.onclick = function() {
+                container.removeChild(itemDiv);
+            };
+
+            // 組裝元素
+            itemDiv.appendChild(qrDiv);
+            itemDiv.appendChild(removeBtn);
+            container.appendChild(itemDiv);
+
+            // 清空輸入框
+            input.value = '';
         }
     </script>
 </body>
 </html>
+
