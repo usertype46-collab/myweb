@@ -3,212 +3,198 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>即時條碼與 QR Code 產生器</title>
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <title>條碼 & QR Code 即時產生器</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <style>
+        :root {
+            --primary: #2563eb;
+            --danger: #ef4444;
+            --success: #10b981;
+            --bg: #f3f4f6;
+            --card-bg: #ffffff;
+        }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f6;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
             color: #333;
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
         }
-        h1 {
+        .header {
             text-align: center;
-            color: #2c3e50;
-        }
-        .section {
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             margin-bottom: 30px;
         }
-        .input-group {
+        .controls {
             display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        input[type="text"] {
-            flex: 1;
-            padding: 10px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
         }
         button {
             padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
             border: none;
-            border-radius: 4px;
-            color: #fff;
-            transition: background 0.3s;
-        }
-        .btn-add {
-            background-color: #3498db;
-        }
-        .btn-add:hover {
-            background-color: #2980b9;
-        }
-        .container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-        .item {
-            background: #fafafa;
-            border: 1px solid #ddd;
-            padding: 15px;
             border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.8; }
+        .btn-add-barcode { background-color: var(--primary); }
+        .btn-add-qr { background-color: #8b5cf6; }
+        .btn-download { background-color: var(--success); width: 100%; margin-top: 10px; }
+        .btn-remove { background-color: var(--danger); width: 100%; margin-top: 10px; }
+        
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-width: 150px;
         }
-        .item canvas, .item svg {
-            margin-bottom: 10px;
+        .card h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 18px;
         }
-        .btn-remove {
-            background-color: #e74c3c;
+        .input-box {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .canvas-container {
+            min-height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            width: 100%;
+            overflow: hidden;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto !important;
+        }
+        .error-msg {
+            color: var(--danger);
             font-size: 14px;
-            padding: 6px 12px;
-        }
-        .btn-remove:hover {
-            background-color: #c0392b;
+            display: none;
         }
     </style>
 </head>
 <body>
 
-    <h1>即時條碼與 QR Code 產生器</h1>
-
-    <div class="section">
-        <h2>一維條碼 (Barcode)</h2>
-        <div class="input-group">
-            <input type="text" id="barcodeInput" placeholder="請輸入任意值..." onkeypress="handleEnter(event, addBarcode)">
-            <button class="btn-add" onclick="addBarcode()">新增條碼</button>
-        </div>
-        <div class="container" id="barcodeContainer">
-            </div>
+    <div class="header">
+        <h1>條碼 & QR Code 即時產生器</h1>
+        <p>輸入任意值即可即時生成，並支援下載圖片</p>
     </div>
 
-    <div class="section">
-        <h2>二維碼 (QR Code)</h2>
-        <div class="input-group">
-            <input type="text" id="qrInput" placeholder="請輸入任意值..." onkeypress="handleEnter(event, addQRCode)">
-            <button class="btn-add" onclick="addQRCode()">新增 QR Code</button>
-        </div>
-        <div class="container" id="qrContainer">
-            </div>
+    <div class="controls">
+        <button class="btn-add-barcode" onclick="addCard('barcode')">＋ 新增條碼 (Barcode)</button>
+        <button class="btn-add-qr" onclick="addCard('qrcode')">＋ 新增 QR Code</button>
     </div>
+
+    <div class="container" id="cardContainer">
+        </div>
 
     <script>
-        // 支援按下 Enter 鍵直接新增
-        function handleEnter(event, actionFunction) {
-            if (event.key === 'Enter') {
-                actionFunction();
-            }
-        }
+        const container = document.getElementById('cardContainer');
 
-        // --- 條碼 (Barcode) 邏輯 ---
-        function addBarcode() {
-            const input = document.getElementById('barcodeInput');
-            const value = input.value.trim();
+        // 初始化預設產生一張條碼和一張 QR Code
+        window.onload = () => {
+            addCard('barcode');
+            addCard('qrcode');
+        };
+
+        function addCard(type) {
+            const card = document.createElement('div');
+            card.className = 'card';
             
-            if (!value) {
-                alert('請輸入有效的值！');
-                return;
-            }
-
-            const container = document.getElementById('barcodeContainer');
+            const titleText = type === 'barcode' ? '條碼產生器' : 'QR Code 產生器';
+            const defaultText = type === 'barcode' ? '123456789' : 'https://github.com';
             
-            // 建立外層容器
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'item';
+            // 建立卡片內的 HTML 結構
+            card.innerHTML = `
+                <h3>${titleText}</h3>
+                <input type="text" class="input-box" placeholder="請輸入內容..." value="${defaultText}">
+                <span class="error-msg">無法生成，請檢查輸入內容（條碼不支援中文）</span>
+                <div class="canvas-container">
+                    <canvas></canvas>
+                </div>
+                <button class="btn-download">下載圖片</button>
+                <button class="btn-remove">移除此區塊</button>
+            `;
 
-            // 建立 SVG 元素供 JsBarcode 繪製
-            const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            
-            try {
-                // 使用預設的 CODE128 格式，支援大部分英數字與符號
-                JsBarcode(svg, value, {
-                    format: "CODE128",
-                    displayValue: true,
-                    fontSize: 18,
-                    margin: 10
-                });
-            } catch (e) {
-                alert('無法產生此條碼，請確認輸入字元是否支援（建議使用英數字）。');
-                return;
-            }
+            const input = card.querySelector('.input-box');
+            const canvas = card.querySelector('canvas');
+            const btnDownload = card.querySelector('.btn-download');
+            const btnRemove = card.querySelector('.btn-remove');
+            const errorMsg = card.querySelector('.error-msg');
 
-            // 建立移除按鈕
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'btn-remove';
-            removeBtn.innerText = '移除';
-            removeBtn.onclick = function() {
-                container.removeChild(itemDiv);
+            // 繪製條碼或 QR Code 的函數
+            const render = () => {
+                const value = input.value.trim() || ' '; // 避免空值報錯
+                errorMsg.style.display = 'none';
+                canvas.style.display = 'block';
+
+                try {
+                    if (type === 'barcode') {
+                        JsBarcode(canvas, value, {
+                            format: "CODE128", // 支援大小寫英文與數字
+                            width: 2,
+                            height: 80,
+                            displayValue: true
+                        });
+                    } else {
+                        new QRious({
+                            element: canvas,
+                            value: value,
+                            size: 200
+                        });
+                    }
+                } catch (e) {
+                    // 如果輸入不支援的字元（例如條碼輸入中文），顯示錯誤提示
+                    canvas.style.display = 'none';
+                    errorMsg.style.display = 'block';
+                }
             };
 
-            // 組裝元素
-            itemDiv.appendChild(svg);
-            itemDiv.appendChild(removeBtn);
-            container.appendChild(itemDiv);
+            // 綁定事件
+            input.addEventListener('input', render); // 即時生成
 
-            // 清空輸入框
-            input.value = '';
-        }
-
-        // --- 二維碼 (QR Code) 邏輯 ---
-        function addQRCode() {
-            const input = document.getElementById('qrInput');
-            const value = input.value.trim();
-            
-            if (!value) {
-                alert('請輸入有效的值！');
-                return;
-            }
-
-            const container = document.getElementById('qrContainer');
-            
-            // 建立外層容器
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'item';
-
-            // 建立 div 供 QRCode.js 繪製
-            const qrDiv = document.createElement('div');
-            qrDiv.style.marginBottom = "10px";
-            
-            // 產生 QR Code
-            new QRCode(qrDiv, {
-                text: value,
-                width: 128,
-                height: 128,
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H
+            btnDownload.addEventListener('click', () => {
+                if(canvas.style.display === 'none') return alert('圖片無效，無法下載');
+                const link = document.createElement('a');
+                link.download = `${type}-${Date.now()}.png`; // 自動命名檔案
+                link.href = canvas.toDataURL('image/png');
+                link.click();
             });
 
-            // 建立移除按鈕
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'btn-remove';
-            removeBtn.innerText = '移除';
-            removeBtn.onclick = function() {
-                container.removeChild(itemDiv);
-            };
+            btnRemove.addEventListener('click', () => {
+                card.remove(); // 移除 DOM 元素
+            });
 
-            // 組裝元素
-            itemDiv.appendChild(qrDiv);
-            itemDiv.appendChild(removeBtn);
-            container.appendChild(itemDiv);
-
-            // 清空輸入框
-            input.value = '';
+            // 初始渲染
+            render();
+            container.appendChild(card);
         }
     </script>
 </body>
 </html>
+html>
 
