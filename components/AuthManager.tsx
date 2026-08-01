@@ -7,10 +7,13 @@ import { User } from '@supabase/supabase-js'
 export default function AuthManager({ onAuthChange }: { onAuthChange: (user: User | null) => void }) {
   const supabase = createClient()
   const [user, setUser] = useState<User | null>(null)
+  
+  // 表單狀態
+  const [isLoginMode, setIsLoginMode] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState({ type: '', text: '' }) // type: 'error' | 'success' | 'info'
 
   useEffect(() => {
     // 獲取初始用戶數據
@@ -27,35 +30,56 @@ export default function AuthManager({ onAuthChange }: { onAuthChange: (user: Use
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [onAuthChange, supabase.auth])
 
-  const handleSignUp = async () => {
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault()
     setLoading(true)
-    setMessage('')
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${location.origin}/auth/callback`,
+    setMessage({ type: '', text: '' })
+
+    if (isLoginMode) {
+      // 執行登入邏輯
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) {
+        if (error.message.includes('Invalid login credentials')) {
+          setMessage({ type: 'error', text: '登入失敗：帳號不存在或密碼錯誤。如果是剛註冊，請確認是否已點擊信箱驗證信。' })
+        } else {
+          setMessage({ type: 'error', text: `登入失敗: ${error.message}` })
+        }
+      } else {
+        setMessage({ type: 'success', text: '登入成功！' })
       }
-    })
-    if (error) setMessage(`註冊失敗: ${error.message}`)
-    else setMessage('註冊成功！請檢查您的電子郵件以驗證帳號。')
-    setLoading(false)
-  }
-
-  const handleSignIn = async () => {
-    setLoading(true)
-    setMessage('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setMessage(`登入失敗: ${error.message}`)
-    else setMessage('登入成功！')
+    } else {
+      // 執行註冊邏輯
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${location.origin}/auth/callback`,
+        }
+      })
+      
+      if (error) {
+        setMessage({ type: 'error', text: `註冊失敗: ${error.message}` })
+      } else {
+        // 判斷是否需要信箱驗證 (如果 user 的 identities 存在但尚未確認)
+        if (data.user?.identities?.length === 0) {
+           setMessage({ type: 'error', text: '此信箱已被註冊過，請直接登入。' })
+        } else if (data.session === null) {
+           setMessage({ type: 'info', text: '註冊成功！我們已發送一封驗證信到您的信箱，請點擊連結以啟用帳號。' })
+        } else {
+           setMessage({ type: 'success', text: '註冊且自動登入成功！' })
+        }
+      }
+    }
     setLoading(false)
   }
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
-    setMessage('已成功登出。')
+    setMessage({ type: 'success', text: '已成功登出。' })
+    setEmail('')
+    setPassword('')
   }
 
   return (
@@ -79,11 +103,30 @@ export default function AuthManager({ onAuthChange }: { onAuthChange: (user: Use
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
+        <form onSubmit={handleAuth} className="space-y-4">
+          {/* 模式切換器 */}
+          <div className="flex p-1 bg-gray-100 rounded-lg">
+            <button
+              type="button"
+              onClick={() => { setIsLoginMode(true); setMessage({ type: '', text: '' }) }}
+              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${isLoginMode ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              登入
+            </button>
+            <button
+              type="button"
+              onClick={() => { setIsLoginMode(false); setMessage({ type: '', text: '' }) }}
+              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${!isLoginMode ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              註冊新帳號
+            </button>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">電子郵件 (Email)</label>
             <input
               type="email"
+              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="example@domain.com"
@@ -94,35 +137,34 @@ export default function AuthManager({ onAuthChange }: { onAuthChange: (user: Use
             <label className="block text-sm font-medium text-gray-700 mb-1">密碼 (Password)</label>
             <input
               type="password"
+              required
+              minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder="至少 6 個字元"
               className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={handleSignIn}
-              disabled={loading}
-              className="py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium disabled:opacity-50"
-            >
-              登入
-            </button>
-            <button
-              onClick={handleSignUp}
-              disabled={loading}
-              className="py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition font-medium disabled:opacity-50"
-            >
-              註冊
-            </button>
-          </div>
-        </div>
+          
+          <button
+            type="submit"
+            disabled={loading}
+            className={`w-full py-2 text-white rounded-lg transition font-medium disabled:opacity-50 ${isLoginMode ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-800 hover:bg-gray-900'}`}
+          >
+            {loading ? '處理中...' : (isLoginMode ? '確認登入' : '確認註冊')}
+          </button>
+        </form>
       )}
 
-      {message && (
-        <p className="mt-4 text-sm text-center text-gray-600 bg-gray-50 p-2 rounded border">
-          {message}
-        </p>
+      {/* 訊息提示區塊 */}
+      {message.text && (
+        <div className={`mt-4 p-3 rounded-lg border text-sm ${
+          message.type === 'error' ? 'bg-red-50 text-red-600 border-red-200' : 
+          message.type === 'success' ? 'bg-green-50 text-green-600 border-green-200' : 
+          'bg-blue-50 text-blue-600 border-blue-200'
+        }`}>
+          {message.text}
+        </div>
       )}
     </div>
   )
