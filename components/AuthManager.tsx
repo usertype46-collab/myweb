@@ -13,7 +13,8 @@ export default function AuthManager({ onAuthChange }: { onAuthChange: (user: Use
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState({ type: '', text: '' }) // type: 'error' | 'success' | 'info'
+  // 已經修正：只保留這個物件型態的 message
+  const [message, setMessage] = useState({ type: '', text: '' }) 
 
   useEffect(() => {
     // 獲取初始用戶數據
