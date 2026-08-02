@@ -11,8 +11,8 @@ app = Flask(__name__)
 GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6K5k8eX2ne-PGoDp9wO_bLbsb8heGCJBFmjF-og2MA1ew")
 genai.configure(api_key=GOOGLE_API_KEY)
 
-# 選擇模型，1.5-flash 速度快且視覺能力強
-model = genai.GenerativeModel('gemini-1.5-flash')
+# 選擇模型，gemini-2.5-flash 速度快且視覺能力強
+model = genai.GenerativeModel('gemini-2.5-flash')
 
 def parse_schedule_image(image_bytes):
     try:
@@ -70,7 +70,8 @@ def upload_image():
         if parsed_data:
             return jsonify({"status": "success", "data": parsed_data})
         else:
-            return jsonify({"status": "error", "message": "AI 解析失敗，請確認圖片清晰度或稍後再試。"}), 500
+            # 根據需求更新了這裡的錯誤訊息
+            return jsonify({"status": "error", "message": "解析失敗，檢查圖片解析度或稍後再試"}), 500
 
 # 供 Vercel Serverless 使用的進入點
 if __name__ == '__main__':
