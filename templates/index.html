@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 智能班表解析系統</title>
+    <style>
+        :root {
+            --primary-color: #4A90E2;
+            --bg-color: #F5F7FA;
+            --table-border: #E1E8ED;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        h1 { text-align: center; color: var(--primary-color); }
+        .upload-area {
+            border: 2px dashed var(--primary-color);
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            background: #f9fbff;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .upload-area:hover { background: #eff5ff; }
+        input[type="file"] { display: none; }
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn:disabled { background-color: #ccc; cursor: not-allowed; }
+        
+        /* 載入動畫 */
+        .loader {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* 表格樣式 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            display: none;
+        }
+        th, td {
+            border: 1px solid var(--table-border);
+            padding: 12px;
+            text-align: center;
+        }
+        th { background-color: var(--primary-color); color: white; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        .rest { color: #e74c3c; font-weight: bold; } /* 休假標紅 */
+        .working { color: #2c3e50; font-size: 0.9em;}
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🚀 AI 智能班表解析系統</h1>
+    
+    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+        <p id="fileName">點擊此處選擇班表圖片 (支援 1214.jpg, 1204.jpg 等格式)</p>
+        <input type="file" id="fileInput" accept="image/*" onchange="updateFileName()">
+    </div>
+    
+    <div style="text-align: center;">
+        <button class="btn" id="uploadBtn" onclick="uploadImage()">開始 AI 解析</button>
+    </div>
+
+    <div class="loader" id="loader"></div>
+    <div id="statusMessage" style="text-align: center; margin-top: 10px; color: #666;"></div>
+
+    <table id="resultTable">
+        <thead>
+            <tr>
+                <th>班別</th>
+                <th>姓名</th>
+                <th>狀態</th>
+                <th>8/3 (一)</th>
+                <th>8/4 (二)</th>
+                <th>8/5 (三)</th>
+                <th>8/6 (四)</th>
+                <th>8/7 (五)</th>
+                <th>8/8 (六)</th>
+                <th>8/9 (日)</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+<script>
+    function updateFileName() {
+        const input = document.getElementById('fileInput');
+        const fileNameDisplay = document.getElementById('fileName');
+        if (input.files.length > 0) {
+            fileNameDisplay.innerText = "已選擇檔案: " + input.files[0].name;
+        }
+    }
+
+    async function uploadImage() {
+        const input = document.getElementById('fileInput');
+        if (input.files.length === 0) {
+            alert('請先選擇一張圖片！');
+            return;
+        }
+
+        const file = input.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // UI 狀態更新
+        document.getElementById('loader').style.display = 'block';
+        document.getElementById('statusMessage').innerText = "AI 正在啟動視覺引擎解析班表，請稍候約 5-10 秒...";
+        document.getElementById('uploadBtn').disabled = true;
+        document.getElementById('resultTable').style.display = 'none';
+        document.getElementById('tableBody').innerHTML = '';
+
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                renderTable(result.data);
+                document.getElementById('statusMessage').innerText = "✅ 解析完成！";
+            } else {
+                alert('解析失敗: ' + result.message);
+                document.getElementById('statusMessage').innerText = "❌ 解析失敗";
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('發生網路錯誤，請稍後再試。');
+            document.getElementById('statusMessage').innerText = "❌ 網路錯誤";
+        } finally {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('uploadBtn').disabled = false;
+        }
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('tableBody');
+        const dates = ["8/3", "8/4", "8/5", "8/6", "8/7", "8/8", "8/9"];
+        
+        data.forEach(employee => {
+            const tr = document.createElement('tr');
+            
+            // 基礎資料
+            let html = `
+                <td>${employee.shift || ''}</td>
+                <td><strong>${employee.name || ''}</strong></td>
+                <td>${employee.status || ''}</td>
+            `;
+
+            // 排班資料
+            dates.forEach(date => {
+                let cellData = employee.schedule[date] || '';
+                // 簡易關鍵字上色處理
+                let cssClass = (cellData.includes('休')) ? 'rest' : 'working';
+                // 將換行符號或空白替換為 <br> 以便排版 (例如 "文化/延平 1900~2200")
+                let formattedData = cellData.replace(" ", "<br>"); 
+                
+                html += `<td class="${cssClass}">${formattedData}</td>`;
+            });
+
+            tr.innerHTML = html;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('resultTable').style.display = 'table';
+    }
+</script>
+
+</body>
+</html>
