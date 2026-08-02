@@ -13,8 +13,7 @@ export default function AuthManager({ onAuthChange }: { onAuthChange: (user: Use
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  // 已經修正：只保留這個物件型態的 message
-  const [message, setMessage] = useState({ type: '', text: '' }) 
+  const [message, setMessage] = useState({ type: '', text: '' })
 
   useEffect(() => {
     // 獲取初始用戶數據
@@ -33,13 +32,13 @@ export default function AuthManager({ onAuthChange }: { onAuthChange: (user: Use
     return () => subscription.unsubscribe()
   }, [onAuthChange, supabase.auth])
 
+  // Email / 密碼登入或註冊
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setMessage({ type: '', text: '' })
 
     if (isLoginMode) {
-      // 執行登入邏輯
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
@@ -51,7 +50,6 @@ export default function AuthManager({ onAuthChange }: { onAuthChange: (user: Use
         setMessage({ type: 'success', text: '登入成功！' })
       }
     } else {
-      // 執行註冊邏輯
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -63,7 +61,6 @@ export default function AuthManager({ onAuthChange }: { onAuthChange: (user: Use
       if (error) {
         setMessage({ type: 'error', text: `註冊失敗: ${error.message}` })
       } else {
-        // 判斷是否需要信箱驗證 (如果 user 的 identities 存在但尚未確認)
         if (data.user?.identities?.length === 0) {
            setMessage({ type: 'error', text: '此信箱已被註冊過，請直接登入。' })
         } else if (data.session === null) {
@@ -74,6 +71,24 @@ export default function AuthManager({ onAuthChange }: { onAuthChange: (user: Use
       }
     }
     setLoading(false)
+  }
+
+  // GitHub OAuth 第三方登入
+  const handleGitHubSignIn = async () => {
+    setLoading(true)
+    setMessage({ type: '', text: '' })
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: `${location.origin}/auth/callback`,
+      },
+    })
+
+    if (error) {
+      setMessage({ type: 'error', text: `GitHub 登入失敗: ${error.message}` })
+      setLoading(false)
+    }
+    // 注意：若成功執行 OAuth，瀏覽器會自動跳轉至 GitHub 驗證頁面
   }
 
   const handleSignOut = async () => {
@@ -104,57 +119,79 @@ export default function AuthManager({ onAuthChange }: { onAuthChange: (user: Use
           </button>
         </div>
       ) : (
-        <form onSubmit={handleAuth} className="space-y-4">
-          {/* 模式切換器 */}
-          <div className="flex p-1 bg-gray-100 rounded-lg">
-            <button
-              type="button"
-              onClick={() => { setIsLoginMode(true); setMessage({ type: '', text: '' }) }}
-              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${isLoginMode ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              登入
-            </button>
-            <button
-              type="button"
-              onClick={() => { setIsLoginMode(false); setMessage({ type: '', text: '' }) }}
-              className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${!isLoginMode ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              註冊新帳號
-            </button>
+        <div className="space-y-4">
+          {/* GitHub 登入按鈕 */}
+          <button
+            type="button"
+            onClick={handleGitHubSignIn}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[#24292F] hover:bg-[#1b1f23] text-white rounded-lg transition font-medium shadow-sm disabled:opacity-50"
+          >
+            {/* GitHub Logo SVG */}
+            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+              <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+            </svg>
+            使用 GitHub 登入
+          </button>
+
+          {/* 分隔線 */}
+          <div className="relative flex items-center justify-center">
+            <div className="border-t border-gray-200 w-full"></div>
+            <span className="bg-white px-3 text-xs text-gray-400 absolute">或使用信箱登入</span>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">電子郵件 (Email)</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="example@domain.com"
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">密碼 (Password)</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="至少 6 個字元"
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-            />
-          </div>
-          
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full py-2 text-white rounded-lg transition font-medium disabled:opacity-50 ${isLoginMode ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-800 hover:bg-gray-900'}`}
-          >
-            {loading ? '處理中...' : (isLoginMode ? '確認登入' : '確認註冊')}
-          </button>
-        </form>
+          <form onSubmit={handleAuth} className="space-y-4">
+            {/* 模式切換器 */}
+            <div className="flex p-1 bg-gray-100 rounded-lg">
+              <button
+                type="button"
+                onClick={() => { setIsLoginMode(true); setMessage({ type: '', text: '' }) }}
+                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${isLoginMode ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                登入
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsLoginMode(false); setMessage({ type: '', text: '' }) }}
+                className={`flex-1 py-1.5 text-sm font-medium rounded-md transition ${!isLoginMode ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                註冊新帳號
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">電子郵件 (Email)</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="example@domain.com"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">密碼 (Password)</label>
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="至少 6 個字元"
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+            
+            <button
+              type="submit"
+              disabled={loading}
+              className={`w-full py-2 text-white rounded-lg transition font-medium disabled:opacity-50 ${isLoginMode ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-800 hover:bg-gray-900'}`}
+            >
+              {loading ? '處理中...' : (isLoginMode ? '確認登入' : '確認註冊')}
+            </button>
+          </form>
+        </div>
       )}
 
       {/* 訊息提示區塊 */}
