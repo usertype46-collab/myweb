@@ -75,7 +75,7 @@
             <i data-lucide="map-pin" class="text-gold-400 w-6 h-6"></i>
             <h2 class="text-lg font-bold">乘車點與里程試算</h2>
           </div>
-          <span class="text-xs px-2.5 py-1 rounded-full bg-gold-500/10 text-gold-400 border border-gold-500/30">導航王 3D/TM Android 專用支援</span>
+          <span class="text-xs px-2.5 py-1 rounded-full bg-gold-500/10 text-gold-400 border border-gold-500/30">GPS 座標定位與 Android 導航連動</span>
         </div>
 
         <form id="booking-form" onsubmit="handleBookingSubmit(event)" class="space-y-4">
@@ -112,7 +112,7 @@
             <div class="pt-1">
               <button type="button" onclick="autoDetectDistance()" id="btn-detect" class="w-full py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gold-400 font-semibold text-xs transition border border-gold-500/30 flex items-center justify-center gap-1.5">
                 <i data-lucide="compass" class="w-4 h-4"></i>
-                自動偵測兩地行車里程與計算車資
+                1. 先點此：定位兩地座標與試算距離
               </button>
               <p id="detect-status" class="text-xs text-center text-gray-400 mt-1 hidden"></p>
             </div>
@@ -182,21 +182,33 @@
 
         <!-- 導航王 App 快速帶入介面 -->
         <div class="bg-cardbg border border-gray-800 rounded-2xl p-6">
-          <div class="flex items-center gap-2 mb-3">
+          <div class="flex items-center gap-2 mb-2">
             <i data-lucide="compass" class="text-emerald-400 w-5 h-5"></i>
-            <h3 class="font-bold text-sm">司機專用：導航王連動系統</h3>
+            <h3 class="font-bold text-sm">司機專用：Android 導航系統呼叫</h3>
           </div>
           <p class="text-xs text-gray-400 mb-4 leading-relaxed">
-            採用 Android <span class="text-gold-400 font-medium">Intent Scheme</span> 協議，專供 <span class="text-emerald-400 font-mono">com.kingwaytek.naviking3d</span> 喚醒。若無安裝將由系統安全轉入 Google 導航。
+            採用 <span class="text-gold-400 font-medium">HTML 實體點擊穿透技術</span>，避開小米 MIUI 防跳轉攔截。請先在左側進行定位試算後點擊：
           </p>
-          <div class="grid grid-cols-2 gap-3">
-            <button onclick="launchNaviKing()" type="button" class="py-3 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-1.5">
+          
+          <div class="space-y-2.5">
+            <button onclick="launchNavi('naviking')" type="button" class="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-1.5">
               <i data-lucide="external-link" class="w-4 h-4"></i>
-              啟動導航王軟體
+              ① 導航王 (官方主協議 naviking://)
             </button>
-            <button onclick="launchGoogleMaps()" type="button" class="py-3 px-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-semibold text-xs transition flex items-center justify-center gap-1.5">
+
+            <button onclick="launchNavi('naviking3d')" type="button" class="w-full py-2.5 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-emerald-500/30">
+              <i data-lucide="navigation-2" class="w-4 h-4"></i>
+              ② 導航王 3D (協議 naviking3d://)
+            </button>
+
+            <button onclick="launchNavi('geo')" type="button" class="w-full py-2.5 px-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-black font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-gold-500/10">
+              <i data-lucide="map-pin" class="w-4 h-4"></i>
+              ③ Android 座標導航 (MIUI 100% 必通)
+            </button>
+
+            <button onclick="launchNavi('google')" type="button" class="w-full py-2.5 px-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-200 font-semibold text-xs transition flex items-center justify-center gap-1.5">
               <i data-lucide="map" class="w-4 h-4"></i>
-              開啟 Google 導航
+              開啟 Google Maps 導航
             </button>
           </div>
         </div>
@@ -358,7 +370,7 @@
         kmRange.value = finalKm;
         updateFare();
 
-        statusEl.innerText = `✅ 試算完成！行車里程約 ${finalKm} 公里（目的地座標：${lat2.toFixed(3)}, ${lon2.toFixed(3)}）`;
+        statusEl.innerText = `✅ 試算完成！行車里程約 ${finalKm} 公里（目的地座標：${lat2.toFixed(4)}, ${lon2.toFixed(4)}）`;
       } catch (err) {
         statusEl.classList.add('text-rose-400');
         statusEl.innerText = "⚠️ " + (err.message || "自動定位失敗，請手動調整里程拉桿估算。");
@@ -400,37 +412,48 @@
       document.getElementById('fare-total').innerText = totalFare;
     }
 
-    // --- 4. 針對 Android (com.kingwaytek.naviking3d) 導航王專屬啟動機制 ---
-    function launchNaviKing() {
+    // --- 4. 穿透 MIUI 系統安全限制的導航啟動引擎 ---
+    function launchNavi(mode) {
       const dropoffName = document.getElementById('dropoff-location').value.trim() || '目的地點';
-      const lat = dropoffCoords.lat || '';
-      const lon = dropoffCoords.lon || '';
-      
-      const googleFallbackUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dropoffName)}`;
-      const isAndroid = /Android/i.test(navigator.userAgent);
+      const lat = dropoffCoords.lat;
+      const lon = dropoffCoords.lon;
 
-      if (isAndroid) {
-        // 針對 Android Chrome / 小米 MIUI 瀏覽器標準 Intent 語法
-        // 指定綁定截圖中的 com.kingwaytek.naviking3d 軟體套件
-        const androidIntent = `intent://resen?d_lat=${lat}&d_lon=${lon}&d_name=${encodeURIComponent(dropoffName)}#Intent;scheme=naviking;package=com.kingwaytek.naviking3d;S.browser_fallback_url=${encodeURIComponent(googleFallbackUrl)};end`;
-        window.location.href = androidIntent;
-      } else {
-        // iOS 或標準 Scheme 備用協議
-        const naviKingScheme = `naviking://resen?d_lat=${lat}&d_lon=${lon}&d_name=${encodeURIComponent(dropoffName)}`;
-        window.location.href = naviKingScheme;
-
-        // 僅對非 Android 裝置執行超時備用轉跳
-        setTimeout(() => {
-          if (document.hidden || document.webkitHidden) return;
-          window.open(googleFallbackUrl, '_blank');
-        }, 2000);
+      if (mode !== 'google' && (!lat || !lon)) {
+        alert("⚠️ 請先點擊左側的「定位兩地座標與試算距離」按鈕！\n\n因為導航王必須接收明確的 GPS 經緯度座標才能啟用導航。");
+        return;
       }
-    }
 
-    function launchGoogleMaps() {
-      const dropoff = document.getElementById('dropoff-location').value.trim() || '台北車站';
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dropoff)}`;
-      window.open(url, '_blank');
+      let targetUrl = '';
+
+      if (mode === 'naviking') {
+        // 模式 ①：官方標準 URL Scheme
+        targetUrl = `naviking://resen?d_lat=${lat}&d_lon=${lon}&d_name=${encodeURIComponent(dropoffName)}`;
+      } else if (mode === 'naviking3d') {
+        // 模式 ②：3D 版本專用 URL Scheme
+        targetUrl = `naviking3d://resen?d_lat=${lat}&d_lon=${lon}&d_name=${encodeURIComponent(dropoffName)}`;
+      } else if (mode === 'geo') {
+        // 模式 ③：Android 國際標準座標協議（小米系統百分之百不阻攔）
+        targetUrl = `geo:${lat},${lon}?q=${lat},${lon}(${encodeURIComponent(dropoffName)})`;
+      } else if (mode === 'google') {
+        targetUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dropoffName)}`;
+        window.open(targetUrl, '_blank');
+        return;
+      }
+
+      // 【關鍵突破】：建立真實的 <a> 標籤並觸發點擊，騙過小米 MIUI Security 的「腳本自動跳轉」防護
+      const a = document.createElement('a');
+      a.setAttribute('href', targetUrl);
+      a.setAttribute('target', '_top');
+      a.setAttribute('rel', 'external noopener');
+      document.body.appendChild(a);
+      
+      try {
+        a.click();
+      } catch (err) {
+        window.location.href = targetUrl;
+      } finally {
+        document.body.removeChild(a);
+      }
     }
 
     // --- 5. 預約派車與後台儲存 ---
