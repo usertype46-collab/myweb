@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ROYAL CHAUFFEUR | VIP 專車派遣與里程預約</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            gold: {
+              400: '#FBBF24',
+              500: '#F59E0B',
+              600: '#D97706',
+            },
+            darkbg: '#0B0F19',
+            cardbg: '#111827',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* 自訂卷軸 */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0B0F19; }
+    ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #F59E0B; }
+  </style>
+</head>
+<body class="bg-darkbg text-gray-100 font-sans min-h-screen pb-12">
+
+  <!-- 頂部導航列 -->
+  <header class="border-b border-gray-800 bg-darkbg/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-gold-600 to-gold-400 flex items-center justify-center text-black font-extrabold text-xl shadow-lg shadow-gold-500/20">
+          R
+        </div>
+        <div>
+          <h1 class="font-bold tracking-wider text-lg text-white">ROYAL CHAUFFEUR</h1>
+          <p class="text-xs text-gold-400 tracking-widest">VIP 尊榮白牌專車派遣系統</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-4">
+        <button onclick="switchTab('booking')" id="btn-booking" class="px-4 py-2 rounded-lg text-sm font-medium transition bg-gold-500 text-black font-semibold">
+          預約與計費
+        </button>
+        <button onclick="switchTab('chat')" id="btn-chat" class="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white transition">
+          線上叫車對話
+        </button>
+        <button onclick="switchTab('admin')" id="btn-admin" class="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:text-white transition flex items-center gap-1.5">
+          <i data-lucide="database" class="w-4 h-4 text-gold-400"></i>
+          乘車紀錄後台
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主內容區 -->
+  <main class="max-w-7xl mx-auto px-4 mt-8">
+
+    <!-- TAB 1: 里程預約與費用試算 -->
+    <section id="tab-booking" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      
+      <!-- 左側：乘車資訊設定 -->
+      <div class="lg:col-span-7 bg-cardbg border border-gray-800 rounded-2xl p-6 shadow-xl">
+        <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-800">
+          <div class="flex items-center gap-2">
+            <i data-lucide="map-pin" class="text-gold-400 w-6 h-6"></i>
+            <h2 class="text-lg font-bold">乘車點與里程試算</h2>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded-full bg-gold-500/10 text-gold-400 border border-gold-500/30">導航王連動支援</span>
+        </div>
+
+        <form id="booking-form" onsubmit="handleBookingSubmit(event)" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 mb-1.5">乘客姓名 / 稱謂 *</label>
+              <input type="text" id="cust-name" required placeholder="例如：陳先生" class="w-full bg-darkbg border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-gold-500 transition" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-400 mb-1.5">聯絡電話 *</label>
+              <input type="tel" id="cust-phone" required placeholder="09xx-xxx-xxx" class="w-full bg-darkbg border border-gray-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-gold-500 transition" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1.5">上車地點 (搭乘地) *</label>
+            <div class="relative">
+              <input type="text" id="pickup-location" required placeholder="輸入地址或標的物，例：台北車站東三門" class="w-full bg-darkbg border border-gray-700 rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-gold-500 transition" />
+              <i data-lucide="navigation" class="w-4 h-4 text-emerald-400 absolute left-3 top-3"></i>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1.5">目的地點 (下車地) *</label>
+            <div class="relative">
+              <input type="text" id="dropoff-location" required placeholder="輸入目的地，例：桃園國際機場第一航廈" class="w-full bg-darkbg border border-gray-700 rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-gold-500 transition" />
+              <i data-lucide="flag" class="w-4 h-4 text-rose-400 absolute left-3 top-3"></i>
+            </div>
+          </div>
+
+          <!-- 里程與夜間設定 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div>
+              <div class="flex justify-between text-xs font-semibold text-gray-400 mb-1.5">
+                <span>預估行車距離 (公里 KM)</span>
+                <span id="km-display" class="text-gold-400 font-bold">12.0 km</span>
+              </div>
+              <input type="range" id="km-range" min="1" max="150" value="12" step="0.5" oninput="updateFare()" class="w-full accent-gold-500 bg-gray-700 h-2 rounded-lg cursor-pointer" />
+            </div>
+            
+            <div class="flex items-center justify-between bg-darkbg border border-gray-800 p-3 rounded-lg">
+              <div>
+                <span class="text-sm font-semibold block">夜間 / 深夜時段</span>
+                <span class="text-xs text-gray-500">23:00 - 06:00 (夜間加價 +20%)</span>
+              </div>
+              <input type="checkbox" id="night-surcharge" onchange="updateFare()" class="w-5 h-5 accent-gold-500 rounded cursor-pointer" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-gray-400 mb-1.5">備註需求 (特殊指示、行李件數等)</label>
+            <input type="text" id="cust-note" placeholder="例：有兩件大型行李、需要兒童安全座椅" class="w-full bg-darkbg border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gold-500 transition" />
+          </div>
+
+          <div class="pt-4">
+            <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-black font-bold text-base shadow-lg shadow-gold-500/20 transition flex items-center justify-center gap-2">
+              <i data-lucide="send" class="w-5 h-5"></i>
+              確認派車與記錄乘車資訊
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 右側：車資估算與導航連動 -->
+      <div class="lg:col-span-5 space-y-6">
+        <!-- 費率卡 -->
+        <div class="bg-gradient-to-b from-cardbg to-darkbg border border-gold-500/30 rounded-2xl p-6 relative overflow-hidden shadow-2xl">
+          <div class="absolute -right-8 -bottom-8 w-40 h-40 bg-gold-500/5 rounded-full blur-2xl"></div>
+          
+          <h3 class="text-xs uppercase tracking-widest text-gold-400 font-semibold mb-4">ESTIMATED FARE // 試算車資</h3>
+          <div class="flex items-baseline gap-1 mb-6">
+            <span class="text-sm text-gray-400">NT$</span>
+            <span id="fare-total" class="text-5xl font-black text-white tracking-tight">410</span>
+            <span class="text-xs text-gray-400 ml-2">起跳價 + 里程計費</span>
+          </div>
+
+          <div class="space-y-3 text-sm text-gray-300 border-t border-gray-800 pt-4">
+            <div class="flex justify-between">
+              <span class="text-gray-400">基本起跳車資</span>
+              <span>NT$ 100</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-400">里程單價 (每公里 NT$ 25)</span>
+              <span id="fare-km-price">NT$ 300</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-400">夜間加成 (+20%)</span>
+              <span id="fare-night-price">NT$ 0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 導航王 App 快速帶入介面 -->
+        <div class="bg-cardbg border border-gray-800 rounded-2xl p-6">
+          <div class="flex items-center gap-2 mb-3">
+            <i data-lucide="compass" class="text-emerald-400 w-5 h-5"></i>
+            <h3 class="font-bold text-sm">司機專用：一鍵帶入導航王軟體</h3>
+          </div>
+          <p class="text-xs text-gray-400 mb-4 leading-relaxed">
+            系統將自動將「目的地點」轉換為坐標與導航指令。支援行動裝置<span class="text-gold-400 font-medium">「導航王TM / 3D」URL Scheme</span>，若設備未設定將自動轉為 Google Maps 導航。
+          </p>
+          <div class="grid grid-cols-2 gap-3">
+            <button onclick="launchNaviKing()" type="button" class="py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition flex items-center justify-center gap-1.5">
+              <i data-lucide="external-link" class="w-4 h-4"></i>
+              啟動導航王軟體
+            </button>
+            <button onclick="launchGoogleMaps()" type="button" class="py-2.5 px-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-semibold text-xs transition flex items-center justify-center gap-1.5">
+              <i data-lucide="map" class="w-4 h-4"></i>
+              開啟 Google 導航
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: 線上叫車與對話 -->
+    <section id="tab-chat" class="hidden max-w-4xl mx-auto">
+      <div class="bg-cardbg border border-gray-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col h-[650px]">
+        <!-- 對話標題條 -->
+        <div class="bg-darkbg px-6 py-4 border-b border-gray-800 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
+            <div>
+              <h3 class="font-bold text-sm text-white">VIP 派遣線上即時客服</h3>
+              <p class="text-xs text-gray-400">24H 全天候監控與司機定位支援</p>
+            </div>
+          </div>
+          <button onclick="clearChat()" class="text-xs text-gray-400 hover:text-white transition">清空對話</button>
+        </div>
+
+        <!-- 聊天訊息歷史區 -->
+        <div id="chat-box" class="flex-1 p-6 overflow-y-auto space-y-4">
+          <!-- 預設歡迎詞 -->
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-full bg-gold-500 flex items-center justify-center text-black font-bold text-xs shrink-0">客服</div>
+            <div class="bg-darkbg border border-gray-800 rounded-2xl rounded-tl-none p-4 max-w-md">
+              <p class="text-sm leading-relaxed text-gray-200">
+                貴賓您好，我是 ROYAL VIP 派遣秘書。請在此說明您目前的乘車需求，或直接點選下方功能提示，為您安排尊榮專車。
+              </p>
+              <span class="text-[10px] text-gray-500 block mt-1.5">系統自動訊息</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 快捷標籤 -->
+        <div class="px-6 py-2 bg-darkbg/50 border-t border-gray-800/50 flex gap-2 overflow-x-auto">
+          <button onclick="sendQuickMsg('我已到達上車地點，請司機與我聯繫')" class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-full whitespace-nowrap transition">📍 我已到達上車地點</button>
+          <button onclick="sendQuickMsg('請問目前司機大約幾分鐘會抵達？')" class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-full whitespace-nowrap transition">⏱ 請問司機多久到達？</button>
+          <button onclick="sendQuickMsg('需要預約明日的高鐵/機場接駁專車')" class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1.5 rounded-full whitespace-nowrap transition">✈️ 預約機場接送</button>
+        </div>
+
+        <!-- 輸入欄 -->
+        <div class="p-4 bg-darkbg border-t border-gray-800 flex items-center gap-3">
+          <input type="text" id="chat-input" placeholder="請輸入對話或乘車需求..." onkeydown="if(event.key === 'Enter') sendMessage()" class="flex-1 bg-cardbg border border-gray-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gold-500 transition" />
+          <button onclick="sendMessage()" class="px-5 py-3 rounded-xl bg-gold-500 hover:bg-gold-400 text-black font-bold text-sm transition flex items-center gap-1">
+            發送
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: 顧客與搭乘紀錄後台 -->
+    <section id="tab-admin" class="hidden">
+      <div class="bg-cardbg border border-gray-800 rounded-2xl p-6 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-800">
+          <div>
+            <h2 class="text-lg font-bold flex items-center gap-2">
+              <i data-lucide="file-text" class="text-gold-400 w-5 h-5"></i>
+              客流與搭乘紀錄庫
+            </h2>
+            <p class="text-xs text-gray-400 mt-0.5">系統記錄所有成功呼叫與試算紀錄，儲存於瀏覽器本地空間中</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button onclick="exportCSV()" class="px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold transition flex items-center gap-1.5 border border-gray-700">
+              <i data-lucide="download" class="w-4 h-4 text-gold-400"></i>
+              匯出 CSV 報表
+            </button>
+            <button onclick="clearAllLogs()" class="px-3 py-2 rounded-lg bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 text-xs font-semibold transition">
+              清空紀錄
+            </button>
+          </div>
+        </div>
+
+        <!-- 資料表格 -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-gray-800 text-xs text-gray-400 uppercase tracking-wider">
+                <th class="py-3 px-4 font-semibold">建立時間</th>
+                <th class="py-3 px-4 font-semibold">乘客稱謂 / 電話</th>
+                <th class="py-3 px-4 font-semibold">搭乘地 ➔ 目的地</th>
+                <th class="py-3 px-4 font-semibold">行車里程</th>
+                <th class="py-3 px-4 font-semibold">預計車資</th>
+                <th class="py-3 px-4 font-semibold text-right">管理操作</th>
+              </tr>
+            </thead>
+            <tbody id="log-table-body" class="divide-y divide-gray-800/60 text-sm">
+              <!-- JS 動態生成 -->
+            </tbody>
+          </table>
+          <div id="no-log-msg" class="text-center py-12 text-gray-500 text-sm hidden">
+            目前尚無乘車紀錄，請於「預約與計費」建立一筆新派車單。
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // --- 1. 初始化與 Tab 切換 ---
+    let currentTab = 'booking';
+    
+    function switchTab(tabId) {
+      currentTab = tabId;
+      ['booking', 'chat', 'admin'].forEach(tab => {
+        const section = document.getElementById(`tab-${tab}`);
+        const btn = document.getElementById(`btn-${tab}`);
+        if (tab === tabId) {
+          section.classList.remove('hidden');
+          btn.classList.add('bg-gold-500', 'text-black', 'font-semibold');
+          btn.classList.remove('text-gray-300');
+        } else {
+          section.classList.add('hidden');
+          btn.classList.remove('bg-gold-500', 'text-black', 'font-semibold');
+          btn.classList.add('text-gray-300');
+        }
+      });
+      if (tabId === 'admin') loadLogs();
+      lucide.createIcons();
+    }
+
+    // --- 2. 里程與車資計費系統 ---
+    function updateFare() {
+      const km = parseFloat(document.getElementById('km-range').value);
+      const isNight = document.getElementById('night-surcharge').checked;
+      
+      document.getElementById('km-display').innerText = `${km.toFixed(1)} km`;
+      
+      const basePrice = 100; // 基本起跳價
+      const perKmPrice = 25; // 每公里費率
+      const kmTotal = Math.round(km * perKmPrice);
+      const subTotal = basePrice + kmTotal;
+      const nightSurcharge = isNight ? Math.round(subTotal * 0.2) : 0;
+      const totalFare = subTotal + nightSurcharge;
+
+      document.getElementById('fare-km-price').innerText = `NT$ ${kmTotal}`;
+      document.getElementById('fare-night-price').innerText = `NT$ ${nightSurcharge}`;
+      document.getElementById('fare-total').innerText = totalFare;
+    }
+
+    // --- 3. 預約與資料記錄儲存 ---
+    function handleBookingSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('cust-name').value.trim();
+      const phone = document.getElementById('cust-phone').value.trim();
+      const pickup = document.getElementById('pickup-location').value.trim();
+      const dropoff = document.getElementById('dropoff-location').value.trim();
+      const note = document.getElementById('cust-note').value.trim();
+      const km = document.getElementById('km-range').value;
+      const fare = document.getElementById('fare-total').innerText;
+
+      const newRecord = {
+        id: Date.now(),
+        time: new Date().toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+        name,
+        phone,
+        pickup,
+        dropoff,
+        note,
+        km,
+        fare
+      };
+
+      const existingLogs = JSON.parse(localStorage.getItem('royal_taxi_logs') || '[]');
+      existingLogs.unshift(newRecord);
+      localStorage.setItem('royal_taxi_logs', JSON.stringify(existingLogs));
+
+      alert(`✅ 派車單已成功建立！\n\n乘客：${name}\n搭乘地：${pickup}\n目的地：${dropoff}\n估計車資：NT$ ${fare}`);
+      document.getElementById('booking-form').reset();
+      updateFare();
+    }
+
+    // --- 4. 乘車紀錄後台管理 ---
+    function loadLogs() {
+      const tbody = document.getElementById('log-table-body');
+      const noMsg = document.getElementById('no-log-msg');
+      const logs = JSON.parse(localStorage.getItem('royal_taxi_logs') || '[]');
+
+      tbody.innerHTML = '';
+      if (logs.length === 0) {
+        noMsg.classList.remove('hidden');
+        return;
+      }
+      noMsg.classList.add('hidden');
+
+      logs.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-darkbg/40 transition";
+        tr.innerHTML = `
+          <td class="py-4 px-4 text-gray-400 text-xs">${row.time}</td>
+          <td class="py-4 px-4 font-medium">
+            <div>${row.name}</div>
+            <div class="text-xs text-gold-400">${row.phone}</div>
+          </td>
+          <td class="py-4 px-4 max-w-xs">
+            <div class="truncate text-gray-200">上：${row.pickup}</div>
+            <div class="truncate text-gray-400 text-xs">下：${row.dropoff}</div>
+          </td>
+          <td class="py-4 px-4">${row.km} <span class="text-xs text-gray-400">km</span></td>
+          <td class="py-4 px-4 font-bold text-gold-400">NT$ ${row.fare}</td>
+          <td class="py-4 px-4 text-right">
+            <button onclick="deleteLog(${row.id})" class="text-xs px-2.5 py-1.5 rounded bg-rose-900/30 text-rose-400 hover:bg-rose-900/60 transition">刪除</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function deleteLog(id) {
+      if (!confirm("確定要刪除這筆派遣紀錄嗎？")) return;
+      let logs = JSON.parse(localStorage.getItem('royal_taxi_logs') || '[]');
+      logs = logs.filter(item => item.id !== id);
+      localStorage.setItem('royal_taxi_logs', JSON.stringify(logs));
+      loadLogs();
+    }
+
+    function clearAllLogs() {
+      if (!confirm("確定要清空所有顧客與乘車紀錄嗎？此動作無法復原。")) return;
+      localStorage.removeItem('royal_taxi_logs');
+      loadLogs();
+    }
+
+    function exportCSV() {
+      const logs = JSON.parse(localStorage.getItem('royal_taxi_logs') || '[]');
+      if (logs.length === 0) {
+        alert('目前無可匯出的資料');
+        return;
+      }
+      let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+      csvContent += "時間,姓名,電話,搭乘地點,目的地點,里程(km),費用(NT$),備註\n";
+      logs.forEach(row => {
+        csvContent += `"${row.time}","${row.name}","${row.phone}","${row.pickup}","${row.dropoff}","${row.km}","${row.fare}","${row.note}"\n`;
+      });
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `Taxi_Dispatch_Logs_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // --- 5. 線上叫車即時客服模擬 ---
+    function sendMessage() {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+      
+      appendMsg('user', text);
+      input.value = '';
+
+      // 模擬專車秘書即時自動回應
+      setTimeout(() => {
+        let reply = "收到您的訊息！線上調度中，司機為您安排專貴座駕，約 5-8 分鐘內完成派車確認。";
+        if (text.includes("到達")) reply = "謝謝您的配合！已將到達通知傳至司機車載系統，請於原地稍候。";
+        if (text.includes("幾分鐘") || text.includes("到達")) reply = "目前司機與您的相對距離約 1.8 公里，預估 4 分鐘抵達。";
+        if (text.includes("機場") || text.includes("接駁")) reply = "明日包車接駁已為您預留空間！請您再確認行車資料與班機編號。";
+        appendMsg('support', reply);
+      }, 800);
+    }
+
+    function sendQuickMsg(text) {
+      appendMsg('user', text);
+      setTimeout(() => {
+        appendMsg('support', `謝謝您提供資訊：「${text}」，派遣人員正在連線司機定位端！`);
+      }, 600);
+    }
+
+    function appendMsg(sender, text) {
+      const chatBox = document.getElementById('chat-box');
+      const div = document.createElement('div');
+      div.className = "flex items-start gap-3";
+      
+      if (sender === 'user') {
+        div.className += " justify-end";
+        div.innerHTML = `
+          <div class="bg-gold-500 text-black font-medium rounded-2xl rounded-tr-none p-4 max-w-md text-sm">
+            ${text}
+          </div>
+        `;
+      } else {
+        div.innerHTML = `
+          <div class="w-8 h-8 rounded-full bg-gold-500 flex items-center justify-center text-black font-bold text-xs shrink-0">客服</div>
+          <div class="bg-darkbg border border-gray-800 rounded-2xl rounded-tl-none p-4 max-w-md">
+            <p class="text-sm leading-relaxed text-gray-200">${text}</p>
+            <span class="text-[10px] text-gray-500 block mt-1.5">即時派遣客服</span>
+          </div>
+        `;
+      }
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function clearChat() {
+      document.getElementById('chat-box').innerHTML = '';
+    }
+
+    // --- 6. 導航王 (NaviKing) & Google Maps 啟動機制 ---
+    function launchNaviKing() {
+      const dropoff = document.getElementById('dropoff-location').value.trim() || '桃園國際機場';
+      // 嘗試執行 NaviKing URL Scheme
+      const naviKingScheme = `naviking://`;
+      const fallbackUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dropoff)}`;
+      
+      const startTime = Date.now();
+      window.location.href = naviKingScheme;
+
+      // 若未開啟 App，於 1.5 秒後跳往 Google Maps 作為備用導航
+      setTimeout(() => {
+        if (Date.now() - startTime < 2500) {
+          window.open(fallbackUrl, '_blank');
+        }
+      }, 1500);
+    }
+
+    function launchGoogleMaps() {
+      const dropoff = document.getElementById('dropoff-location').value.trim() || '台北101';
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dropoff)}`;
+      window.open(url, '_blank');
+    }
+
+    // 初始化頁面
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      updateFare();
+    });
+  </script>
+</body>
+</html>
