@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 智能班表解析系統</title>
     
-    <script src="[https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js](https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js)"></script>
-    <script src="[https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js](https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js)"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
         :root {
@@ -64,8 +64,11 @@
             margin-left: 10px;
         }
         .btn-export:hover { background-color: #2ecc71; }
+        .btn-image { background-color: #e67e22; }
+        .btn-image:hover { background-color: #d35400; }
+        
         .export-actions {
-            display: none;
+            display: none; /* 預設隱藏，解析成功才顯示 */
             text-align: right;
             margin-top: 20px;
             margin-bottom: 10px;
@@ -85,6 +88,11 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
         /* 表格樣式 */
+        #tableContainer {
+            width: 100%;
+            overflow-x: auto;
+            background: white; /* 確保匯出圖片時背景不會透明發黑 */
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -98,7 +106,7 @@
         }
         th { background-color: var(--primary-color); color: white; }
         tr:nth-child(even) { background-color: #f8f9fa; }
-        .rest { color: #e74c3c; font-weight: bold; } /* 休假標紅 */
+        .rest { color: #e74c3c; font-weight: bold; }
         .working { color: #2c3e50; font-size: 0.9em;}
     </style>
 </head>
@@ -120,27 +128,29 @@
     <div id="statusMessage" style="text-align: center; margin-top: 10px; color: #666;"></div>
 
     <div class="export-actions" id="exportActions">
-        <button class="btn btn-export" onclick="exportToImage()">🖼️ 匯出圖片</button>
+        <button class="btn btn-export btn-image" onclick="exportToImage()">🖼️ 匯出圖片</button>
         <button class="btn btn-export" onclick="exportToExcel()">📊 匯出 Excel</button>
     </div>
 
-    <table id="resultTable">
-        <thead>
-            <tr>
-                <th>班別</th>
-                <th>姓名</th>
-                <th>狀態</th>
-                <th>8/3 (一)</th>
-                <th>8/4 (二)</th>
-                <th>8/5 (三)</th>
-                <th>8/6 (四)</th>
-                <th>8/7 (五)</th>
-                <th>8/8 (六)</th>
-                <th>8/9 (日)</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-    </table>
+    <div id="tableContainer">
+        <table id="resultTable">
+            <thead>
+                <tr>
+                    <th>班別</th>
+                    <th>姓名</th>
+                    <th>狀態</th>
+                    <th>8/3 (一)</th>
+                    <th>8/4 (二)</th>
+                    <th>8/5 (三)</th>
+                    <th>8/6 (四)</th>
+                    <th>8/7 (五)</th>
+                    <th>8/8 (六)</th>
+                    <th>8/9 (日)</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
 </div>
 
 <script>
@@ -165,7 +175,7 @@
 
         // UI 狀態更新
         document.getElementById('loader').style.display = 'block';
-        document.getElementById('statusMessage').innerText = "AI 正在啟動視覺引擎解析班表，請稍候約 5-10 秒...";
+        document.getElementById('statusMessage').innerText = "AI 正在啟動 Gemini 2.5 視覺引擎解析班表，請稍候...";
         document.getElementById('uploadBtn').disabled = true;
         document.getElementById('resultTable').style.display = 'none';
         document.getElementById('exportActions').style.display = 'none';
@@ -182,18 +192,18 @@
             if (response.ok) {
                 renderTable(result.data);
                 document.getElementById('statusMessage').innerText = "✅ 解析完成！";
+                // 成功解析後，顯示匯出按鈕！
                 document.getElementById('exportActions').style.display = 'block';
             } else {
-                // 統一錯誤訊息
+                // 如果後端捕捉到具體錯誤，這裡會顯示詳細原因
                 const errMsg = result.message || '解析失敗，檢查圖片解析度或稍後再試';
                 alert(errMsg);
                 document.getElementById('statusMessage').innerText = "❌ " + errMsg;
             }
         } catch (error) {
             console.error('Error:', error);
-            // 網路或其他例外情況的錯誤處理
-            alert('解析失敗，檢查圖片解析度或稍後再試');
-            document.getElementById('statusMessage').innerText = "❌ 解析失敗，檢查圖片解析度或稍後再試";
+            alert('系統發生異常，請確認後端是否正常運作。');
+            document.getElementById('statusMessage').innerText = "❌ 網路連線錯誤";
         } finally {
             document.getElementById('loader').style.display = 'none';
             document.getElementById('uploadBtn').disabled = false;
@@ -207,20 +217,16 @@
         data.forEach(employee => {
             const tr = document.createElement('tr');
             
-            // 基礎資料
             let html = `
                 <td>${employee.shift || ''}</td>
                 <td><strong>${employee.name || ''}</strong></td>
                 <td>${employee.status || ''}</td>
             `;
 
-            // 排班資料
             dates.forEach(date => {
                 let cellData = employee.schedule[date] || '';
-                // 簡易關鍵字上色處理
                 let cssClass = (cellData.includes('休')) ? 'rest' : 'working';
-                // 將換行符號或空白替換為 <br> 以便排版
-                let formattedData = cellData.replace(" ", "<br>"); 
+                let formattedData = cellData.replace(/ /g, "<br>"); 
                 
                 html += `<td class="${cssClass}">${formattedData}</td>`;
             });
@@ -232,22 +238,22 @@
         document.getElementById('resultTable').style.display = 'table';
     }
 
-    // --- 新增：匯出圖片功能 ---
     function exportToImage() {
-        const table = document.getElementById('resultTable');
-        // 設定背景色為白色，避免透明背景造成文字無法辨識
-        html2canvas(table, { backgroundColor: "#ffffff" }).then(canvas => {
+        // 針對 tableContainer 進行截圖
+        const container = document.getElementById('tableContainer');
+        html2canvas(container, { backgroundColor: "#ffffff", scale: 2 }).then(canvas => {
             const link = document.createElement('a');
             link.download = '班表解析結果.png';
             link.href = canvas.toDataURL('image/png');
             link.click();
+        }).catch(err => {
+            console.error("圖片匯出失敗:", err);
+            alert("圖片匯出失敗，請稍後再試。");
         });
     }
 
-    // --- 新增：匯出 Excel 功能 ---
     function exportToExcel() {
         const table = document.getElementById('resultTable');
-        // 使用 SheetJS 將 HTML Table 直接轉換為 Workbook
         const workbook = XLSX.utils.table_to_book(table, { sheet: "班表" });
         XLSX.writeFile(workbook, '班表解析結果.xlsx');
     }
