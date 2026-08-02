@@ -75,7 +75,7 @@
             <i data-lucide="map-pin" class="text-gold-400 w-6 h-6"></i>
             <h2 class="text-lg font-bold">乘車點與里程試算</h2>
           </div>
-          <span class="text-xs px-2.5 py-1 rounded-full bg-gold-500/10 text-gold-400 border border-gold-500/30">GPS 座標定位與 Android 導航連動</span>
+          <span class="text-xs px-2.5 py-1 rounded-full bg-gold-500/10 text-gold-400 border border-gold-500/30">智慧剪貼簿自動帶入機制</span>
         </div>
 
         <form id="booking-form" onsubmit="handleBookingSubmit(event)" class="space-y-4">
@@ -184,26 +184,24 @@
         <div class="bg-cardbg border border-gray-800 rounded-2xl p-6">
           <div class="flex items-center gap-2 mb-2">
             <i data-lucide="compass" class="text-emerald-400 w-5 h-5"></i>
-            <h3 class="font-bold text-sm">司機專用：Android 導航系統呼叫</h3>
+            <h3 class="font-bold text-sm">司機專用：導航王自動帶入與導航</h3>
           </div>
+          <p id="clipboard-tip" class="text-xs text-emerald-400 mb-4 font-medium hidden">
+            ✨ 已自動將目的地複製到剪貼簿！開啟導航王若未自動填入，直接在搜尋框「長按貼上」即可。
+          </p>
           <p class="text-xs text-gray-400 mb-4 leading-relaxed">
-            採用 <span class="text-gold-400 font-medium">HTML 實體點擊穿透技術</span>，避開小米 MIUI 防跳轉攔截。請先在左側進行定位試算後點擊：
+            點擊下方按鈕將自動複製地址並啟動導航：
           </p>
           
           <div class="space-y-2.5">
             <button onclick="launchNavi('naviking')" type="button" class="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-1.5">
               <i data-lucide="external-link" class="w-4 h-4"></i>
-              ① 導航王 (官方主協議 naviking://)
-            </button>
-
-            <button onclick="launchNavi('naviking3d')" type="button" class="w-full py-2.5 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-emerald-500/30">
-              <i data-lucide="navigation-2" class="w-4 h-4"></i>
-              ② 導航王 3D (協議 naviking3d://)
+              ① 導航王 (自動複製+標準協定)
             </button>
 
             <button onclick="launchNavi('geo')" type="button" class="w-full py-2.5 px-3 rounded-xl bg-gold-600 hover:bg-gold-500 text-black font-bold text-xs transition flex items-center justify-center gap-1.5 shadow-lg shadow-gold-500/10">
               <i data-lucide="map-pin" class="w-4 h-4"></i>
-              ③ Android 座標導航 (MIUI 100% 必通)
+              ② 座標與地址直接搜尋 (推薦：100% 帶入)
             </button>
 
             <button onclick="launchNavi('google')" type="button" class="w-full py-2.5 px-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-gray-200 font-semibold text-xs transition flex items-center justify-center gap-1.5">
@@ -306,10 +304,8 @@
   </main>
 
   <script>
-    // 經緯度緩存，用來提供給手機版導航王座標定位
     let dropoffCoords = { lat: null, lon: null };
 
-    // --- 1. 初始化與 Tab 切換 ---
     let currentTab = 'booking';
     function switchTab(tabId) {
       currentTab = tabId;
@@ -330,7 +326,6 @@
       lucide.createIcons();
     }
 
-    // --- 2. 自動偵測地點里程 API 與計算 ---
     async function autoDetectDistance() {
       const pickup = document.getElementById('pickup-location').value.trim();
       const dropoff = document.getElementById('dropoff-location').value.trim();
@@ -393,7 +388,6 @@
       return deg * (Math.PI / 180);
     }
 
-    // --- 3. 車資費率結算公式 ---
     function updateFare() {
       const km = parseFloat(document.getElementById('km-range').value);
       const isNight = document.getElementById('night-surcharge').checked;
@@ -412,35 +406,49 @@
       document.getElementById('fare-total').innerText = totalFare;
     }
 
-    // --- 4. 穿透 MIUI 系統安全限制的導航啟動引擎 ---
+    // --- 智慧剪貼簿自動複製 + 導航王喚醒引擎 ---
     function launchNavi(mode) {
-      const dropoffName = document.getElementById('dropoff-location').value.trim() || '目的地點';
+      const dropoffName = document.getElementById('dropoff-location').value.trim();
       const lat = dropoffCoords.lat;
       const lon = dropoffCoords.lon;
 
-      if (mode !== 'google' && (!lat || !lon)) {
-        alert("⚠️ 請先點擊左側的「定位兩地座標與試算距離」按鈕！\n\n因為導航王必須接收明確的 GPS 經緯度座標才能啟用導航。");
+      if (!dropoffName) {
+        alert("請先填寫「目的地點」！");
         return;
       }
+
+      // 【關鍵突破】：一鍵自動複製目的地到手機剪貼簿，確保使用者進到導航王隨時可貼上
+      navigator.clipboard.writeText(dropoffName).then(() => {
+        const tip = document.getElementById('clipboard-tip');
+        tip.classList.remove('hidden');
+        setTimeout(() => tip.classList.add('hidden'), 6000);
+      }).catch(err => {
+        console.log("Clipboard write err:", err);
+      });
 
       let targetUrl = '';
 
       if (mode === 'naviking') {
-        // 模式 ①：官方標準 URL Scheme
+        if (!lat || !lon) {
+          alert("⚠️ 請先點擊「定位兩地座標與試算距離」以獲取經緯度！");
+          return;
+        }
         targetUrl = `naviking://resen?d_lat=${lat}&d_lon=${lon}&d_name=${encodeURIComponent(dropoffName)}`;
-      } else if (mode === 'naviking3d') {
-        // 模式 ②：3D 版本專用 URL Scheme
-        targetUrl = `naviking3d://resen?d_lat=${lat}&d_lon=${lon}&d_name=${encodeURIComponent(dropoffName)}`;
       } else if (mode === 'geo') {
-        // 模式 ③：Android 國際標準座標協議（小米系統百分之百不阻攔）
-        targetUrl = `geo:${lat},${lon}?q=${lat},${lon}(${encodeURIComponent(dropoffName)})`;
+        if (lat && lon) {
+          // 帶有精確座標與地點名稱的 geo 協議
+          targetUrl = `geo:${lat},${lon}?q=${lat},${lon}(${encodeURIComponent(dropoffName)})`;
+        } else {
+          // 若無座標則直接用文字搜尋
+          targetUrl = `geo:0,0?q=${encodeURIComponent(dropoffName)}`;
+        }
       } else if (mode === 'google') {
         targetUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dropoffName)}`;
         window.open(targetUrl, '_blank');
         return;
       }
 
-      // 【關鍵突破】：建立真實的 <a> 標籤並觸發點擊，騙過小米 MIUI Security 的「腳本自動跳轉」防護
+      // 實體點擊穿透 MIUI 系統攔截
       const a = document.createElement('a');
       a.setAttribute('href', targetUrl);
       a.setAttribute('target', '_top');
@@ -456,7 +464,6 @@
       }
     }
 
-    // --- 5. 預約派車與後台儲存 ---
     function handleBookingSubmit(e) {
       e.preventDefault();
       const name = document.getElementById('cust-name').value.trim();
@@ -541,7 +548,6 @@
       document.body.removeChild(link);
     }
 
-    // --- 6. 線上叫車即時對話客服 ---
     function sendMessage() {
       const input = document.getElementById('chat-input');
       const text = input.value.trim();
