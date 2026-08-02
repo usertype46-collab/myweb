@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 智能班表解析系統</title>
+    
+    <script src="[https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js](https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js)"></script>
+    <script src="[https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js](https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js)"></script>
+
     <style>
         :root {
             --primary-color: #4A90E2;
@@ -50,9 +54,23 @@
             font-size: 16px;
             cursor: pointer;
             margin-top: 10px;
+            transition: 0.2s;
         }
         .btn:disabled { background-color: #ccc; cursor: not-allowed; }
         
+        /* 匯出按鈕專屬樣式 */
+        .btn-export {
+            background-color: #27ae60;
+            margin-left: 10px;
+        }
+        .btn-export:hover { background-color: #2ecc71; }
+        .export-actions {
+            display: none;
+            text-align: right;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
         /* 載入動畫 */
         .loader {
             display: none;
@@ -70,7 +88,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-top: 10px;
             display: none;
         }
         th, td {
@@ -100,6 +118,11 @@
 
     <div class="loader" id="loader"></div>
     <div id="statusMessage" style="text-align: center; margin-top: 10px; color: #666;"></div>
+
+    <div class="export-actions" id="exportActions">
+        <button class="btn btn-export" onclick="exportToImage()">🖼️ 匯出圖片</button>
+        <button class="btn btn-export" onclick="exportToExcel()">📊 匯出 Excel</button>
+    </div>
 
     <table id="resultTable">
         <thead>
@@ -145,6 +168,7 @@
         document.getElementById('statusMessage').innerText = "AI 正在啟動視覺引擎解析班表，請稍候約 5-10 秒...";
         document.getElementById('uploadBtn').disabled = true;
         document.getElementById('resultTable').style.display = 'none';
+        document.getElementById('exportActions').style.display = 'none';
         document.getElementById('tableBody').innerHTML = '';
 
         try {
@@ -158,14 +182,18 @@
             if (response.ok) {
                 renderTable(result.data);
                 document.getElementById('statusMessage').innerText = "✅ 解析完成！";
+                document.getElementById('exportActions').style.display = 'block';
             } else {
-                alert('解析失敗: ' + result.message);
-                document.getElementById('statusMessage').innerText = "❌ 解析失敗";
+                // 統一錯誤訊息
+                const errMsg = result.message || '解析失敗，檢查圖片解析度或稍後再試';
+                alert(errMsg);
+                document.getElementById('statusMessage').innerText = "❌ " + errMsg;
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('發生網路錯誤，請稍後再試。');
-            document.getElementById('statusMessage').innerText = "❌ 網路錯誤";
+            // 網路或其他例外情況的錯誤處理
+            alert('解析失敗，檢查圖片解析度或稍後再試');
+            document.getElementById('statusMessage').innerText = "❌ 解析失敗，檢查圖片解析度或稍後再試";
         } finally {
             document.getElementById('loader').style.display = 'none';
             document.getElementById('uploadBtn').disabled = false;
@@ -191,7 +219,7 @@
                 let cellData = employee.schedule[date] || '';
                 // 簡易關鍵字上色處理
                 let cssClass = (cellData.includes('休')) ? 'rest' : 'working';
-                // 將換行符號或空白替換為 <br> 以便排版 (例如 "文化/延平 1900~2200")
+                // 將換行符號或空白替換為 <br> 以便排版
                 let formattedData = cellData.replace(" ", "<br>"); 
                 
                 html += `<td class="${cssClass}">${formattedData}</td>`;
@@ -202,6 +230,26 @@
         });
 
         document.getElementById('resultTable').style.display = 'table';
+    }
+
+    // --- 新增：匯出圖片功能 ---
+    function exportToImage() {
+        const table = document.getElementById('resultTable');
+        // 設定背景色為白色，避免透明背景造成文字無法辨識
+        html2canvas(table, { backgroundColor: "#ffffff" }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = '班表解析結果.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+    }
+
+    // --- 新增：匯出 Excel 功能 ---
+    function exportToExcel() {
+        const table = document.getElementById('resultTable');
+        // 使用 SheetJS 將 HTML Table 直接轉換為 Workbook
+        const workbook = XLSX.utils.table_to_book(table, { sheet: "班表" });
+        XLSX.writeFile(workbook, '班表解析結果.xlsx');
     }
 </script>
 
