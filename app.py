@@ -2,20 +2,23 @@ import os
 import json
 import traceback
 from flask import Flask, request, jsonify, render_template
-# 關鍵升級：使用全新的 google-genai SDK
 from google import genai
 from google.genai import types
 
-app = Flask(__name__)
+# 加上 template_folder 確保 Vercel 找得到網頁
+app = Flask(__name__, template_folder='templates')
 
-# 設定你的 Gemini API Key (請記得更換為你新的 Key)
-GOOGLE_API_KEY = os.environ.get("GEMINI_API_KEY", "AQ.Ab8RN6K5k8eX2ne-PGoDp9wO_bLbsb8heGCJBFmjF-og2MA1ew")
-
-# 初始化 Gemini 2.5 版本的 Client
-client = genai.Client(api_key=GOOGLE_API_KEY)
+def get_gemini_client():
+    # 在執行時才抓取 API Key，防止 Vercel 啟動時崩潰
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("系統找不到 GEMINI_API_KEY，請確認 Vercel 環境變數設定。")
+    return genai.Client(api_key=api_key)
 
 def parse_schedule_image(image_bytes, mime_type):
     try:
+        client = get_gemini_client()
+        
         prompt = """
         你是一個專業的資料輸入與表格解析 AI。
         請分析這張排班表圖片，將其轉換為 JSON 格式。
@@ -42,7 +45,7 @@ def parse_schedule_image(image_bytes, mime_type):
         ]
         """
         
-        # 使用最新的 Gemini 2.5 Flash 模型與新版語法
+        # 使用 2.5 Flash 模型
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=[
@@ -51,14 +54,14 @@ def parse_schedule_image(image_bytes, mime_type):
             ],
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
-                temperature=0.1 # 降低溫度讓 JSON 格式更穩定
+                temperature=0.1 # 降低隨機性，讓 JSON 結構更穩定
             )
         )
         
         return json.loads(response.text), None
         
     except Exception as e:
-        print("❌ 後端解析發生錯誤：")
+        print("❌ 發生錯誤：")
         traceback.print_exc()
         return None, str(e)
 
@@ -76,15 +79,16 @@ def upload_image():
         return jsonify({"error": "未選擇檔案"}), 400
 
     if file:
+        # 讀取檔案 Bytes 與格式
         image_bytes = file.read()
-        mime_type = file.mimetype # 動態抓取圖片的 MimeType (例如 image/jpeg)
+        mime_type = file.mimetype
         
+        # 傳遞給 AI 解析
         parsed_data, error_msg = parse_schedule_image(image_bytes, mime_type)
         
         if parsed_data:
             return jsonify({"status": "success", "data": parsed_data})
         else:
-            # 如果失敗，將具體報錯傳給前端
             return jsonify({
                 "status": "error", 
                 "message": f"AI 解析失敗: {error_msg}"
