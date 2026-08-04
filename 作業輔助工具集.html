@@ -131,7 +131,7 @@
     <div class="container">
         <h1>作業輔助工具集</h1>
         
-        <!-- 新增：字串複製產生器區塊 -->
+        <!-- 字串複製產生器區塊 -->
         <div class="panel">
             <h2>回報字串產生器</h2>
             
@@ -188,7 +188,7 @@
             <textarea id="resultOutput" class="result-box" readonly placeholder="產生的結果會顯示在這裡..."></textarea>
         </div>
 
-        <!-- 原有：條碼與 QR Code 產生器區塊 -->
+        <!-- 條碼與 QR Code 產生器區塊 -->
         <div class="panel">
             <h2>條碼 & QR Code 產生器</h2>
             <div class="control-panel">
@@ -278,7 +278,7 @@
 
         /* ================= 條碼 & QR Code 產生邏輯 ================= */
         
-        function generateCode() {
+        async function generateCode() {
             const inputField = document.getElementById('inputValue');
             const input = inputField.value.trim();
             const type = document.getElementById('codeType').value;
@@ -293,7 +293,6 @@
             card.className = 'card';
 
             const canvas = document.createElement('canvas');
-            let isValid = true;
 
             try {
                 if (type === 'barcode') {
@@ -305,16 +304,14 @@
                         margin: 0
                     });
                 } else if (type === 'qrcode') {
-                    QRCode.toCanvas(canvas, input, { width: 180, margin: 1 }, function(error) {
-                        if (error) { console.error(error); isValid = false; }
-                    });
+                    // 使用 async/await 確保 QR Code 繪製完成
+                    await QRCode.toCanvas(canvas, input, { width: 180, margin: 1 });
                 }
             } catch (e) {
+                console.error(e);
                 alert('產生失敗！\n※注意：傳統條碼通常不支援中文，若要輸入中文請使用 QR Code。');
                 return;
             }
-
-            if (!isValid) return;
 
             const textDisplay = document.createElement('div');
             textDisplay.className = 'text-display';
@@ -355,4 +352,3 @@
     </script>
 </body>
 </html>
-
