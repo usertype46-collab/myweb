@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>作業輔助工具集 (字串 & 條碼) - 強化版</title>
-    <!-- 引入條碼與 QRCode 庫 -->
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <!-- 【修正點1】改用更穩定、不會被手機瀏覽器阻擋的 cdnjs 來源 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
     <style>
         /* 基礎樣式重置 */
         * { box-sizing: border-box; }
@@ -275,7 +275,6 @@
 
         /* ================= 條碼 & QR Code 強化邏輯 ================= */
         
-        // 切換進階選項的顯示狀態
         function toggleAdvancedOptions() {
             const type = document.getElementById('codeType').value;
             document.getElementById('barcodeFormat').style.display = type === 'barcode' ? 'inline-block' : 'none';
@@ -289,6 +288,16 @@
 
             if (!rawInput) {
                 alert('⚠️ 請先輸入數值！');
+                return;
+            }
+
+            // 【修正點2】確保套件已經成功載入，避免出現 "is not defined" 錯誤
+            if (type === 'qrcode' && typeof QRCode === 'undefined') {
+                alert('⚠️ QR Code 產生模組尚未下載完成！\n請檢查您的網路連線，或重新整理網頁後再試一次。');
+                return;
+            }
+            if (type === 'barcode' && typeof JsBarcode === 'undefined') {
+                alert('⚠️ 條碼產生模組尚未下載完成！\n請檢查您的網路連線，或重新整理網頁後再試一次。');
                 return;
             }
 
@@ -308,25 +317,24 @@
                         width: 2, 
                         height: 60, 
                         displayValue: false, 
-                        margin: 10 // 增加邊界讓掃描器更好抓取
+                        margin: 10
                     });
                 } else if (type === 'qrcode') {
                     const errorLevel = document.getElementById('qrErrorLevel').value;
                     await QRCode.toCanvas(canvas, safeInput, { 
                         width: 180, 
-                        margin: 2, // 適度留白
+                        margin: 2, 
                         errorCorrectionLevel: errorLevel 
                     });
                 }
             } catch (e) {
                 console.error("生成元件時發生錯誤:", e);
-                // 根據錯誤類型提供精準回饋，不再寫死錯誤訊息
                 if (type === 'barcode') {
                     alert(`❌ 條碼產生失敗！\n\n【原因】您輸入的內容可能不支援目前的條碼格式。\n目前選擇格式: ${document.getElementById('barcodeFormat').value}\n系統訊息: ${e.message || e}`);
                 } else {
                     alert(`❌ QR Code 產生失敗！\n\n系統訊息: ${e.message || e}`);
                 }
-                return; // 發生錯誤即停止，不把壞掉的卡片加入畫面
+                return; 
             }
 
             const textDisplay = document.createElement('div');
@@ -353,7 +361,7 @@
             card.appendChild(actions);
 
             grid.prepend(card); 
-            inputField.value = ''; // 成功後清空輸入框方便下一次輸入
+            inputField.value = ''; 
         }
 
         function downloadImage(canvas, text, type) {
