@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>作業輔助工具集 (字串 & 條碼) - 強化版</title>
-    <!-- 【修正點1】改用更穩定、不會被手機瀏覽器阻擋的 cdnjs 來源 -->
+    <title>作業輔助工具集 (字串 & 條碼) - 終極離線版</title>
+    <!-- 引入 JsBarcode -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"></script>
     <style>
         /* 基礎樣式重置 */
         * { box-sizing: border-box; }
@@ -111,7 +110,7 @@
             animation: fadeIn 0.3s ease-in-out;
             border: 1px solid #e2e8f0;
         }
-        .card canvas { max-width: 100%; height: auto; background: white; padding: 10px; border-radius: 4px; }
+        .card canvas, .card img { max-width: 100%; height: auto; background: white; padding: 10px; border-radius: 4px; }
         .text-display { 
             word-break: break-all; 
             color: #666; 
@@ -188,7 +187,7 @@
 
         <!-- 條碼與 QR Code 產生器區塊 -->
         <div class="panel">
-            <h2>條碼 & QR Code 產生器 (強化版)</h2>
+            <h2>條碼 & QR Code 產生器 (終極離線版)</h2>
             <div class="control-panel">
                 <input type="text" id="inputValue" placeholder="請輸入數值 (例如: SPX30657)..." />
                 
@@ -203,10 +202,10 @@
                     <option value="CODE39">CODE39 (僅支援大寫英數)</option>
                 </select>
 
-                <!-- QRCode 專屬進階選項 -->
+                <!-- QRCode 專屬進階選項 (備用) -->
                 <select id="qrErrorLevel" style="display: inline-block;">
                     <option value="M">容錯率: 一般 (M)</option>
-                    <option value="H">容錯率: 高 (H - 適合防遮擋)</option>
+                    <option value="H">容錯率: 高 (H)</option>
                 </select>
 
                 <button class="add-btn" onclick="generateCode()">產生圖片</button>
@@ -215,8 +214,11 @@
         </div>
     </div>
 
+    <!-- 內嵌極輕量穩定 QR Code 生成引擎 (qrious)，徹底解決 CDN 擋信或無法讀取問題 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+
     <script>
-        /* ================= 字串產生器邏輯 (維持原樣) ================= */
+        /* ================= 字串產生器邏輯 ================= */
         const today = new Date();
         const dateString = `${today.getMonth() + 1}/${today.getDate()}`;
         document.getElementById('todayDate').textContent = dateString;
@@ -281,7 +283,7 @@
             document.getElementById('qrErrorLevel').style.display = type === 'qrcode' ? 'inline-block' : 'none';
         }
 
-        async function generateCode() {
+        function generateCode() {
             const inputField = document.getElementById('inputValue');
             let rawInput = inputField.value.trim();
             const type = document.getElementById('codeType').value;
@@ -291,51 +293,10 @@
                 return;
             }
 
-            // 【修正點2】確保套件已經成功載入，避免出現 "is not defined" 錯誤
-            if (type === 'qrcode' && typeof QRCode === 'undefined') {
-                alert('⚠️ QR Code 產生模組尚未下載完成！\n請檢查您的網路連線，或重新整理網頁後再試一次。');
-                return;
-            }
-            if (type === 'barcode' && typeof JsBarcode === 'undefined') {
-                alert('⚠️ 條碼產生模組尚未下載完成！\n請檢查您的網路連線，或重新整理網頁後再試一次。');
-                return;
-            }
-
-            // 淨化輸入字串：移除可能導致渲染失敗的零寬度空白字元
             const safeInput = rawInput.replace(/[\u200B-\u200D\uFEFF]/g, '');
-
             const grid = document.getElementById('codeGrid');
             const card = document.createElement('div');
             card.className = 'card';
-            const canvas = document.createElement('canvas');
-
-            try {
-                if (type === 'barcode') {
-                    const format = document.getElementById('barcodeFormat').value;
-                    JsBarcode(canvas, safeInput, { 
-                        format: format, 
-                        width: 2, 
-                        height: 60, 
-                        displayValue: false, 
-                        margin: 10
-                    });
-                } else if (type === 'qrcode') {
-                    const errorLevel = document.getElementById('qrErrorLevel').value;
-                    await QRCode.toCanvas(canvas, safeInput, { 
-                        width: 180, 
-                        margin: 2, 
-                        errorCorrectionLevel: errorLevel 
-                    });
-                }
-            } catch (e) {
-                console.error("生成元件時發生錯誤:", e);
-                if (type === 'barcode') {
-                    alert(`❌ 條碼產生失敗！\n\n【原因】您輸入的內容可能不支援目前的條碼格式。\n目前選擇格式: ${document.getElementById('barcodeFormat').value}\n系統訊息: ${e.message || e}`);
-                } else {
-                    alert(`❌ QR Code 產生失敗！\n\n系統訊息: ${e.message || e}`);
-                }
-                return; 
-            }
 
             const textDisplay = document.createElement('div');
             textDisplay.className = 'text-display';
@@ -344,10 +305,51 @@
             const actions = document.createElement('div');
             actions.className = 'card-actions';
 
+            let downloadTarget;
+
+            try {
+                if (type === 'barcode') {
+                    if (typeof JsBarcode === 'undefined') {
+                        alert('⚠️ 條碼模組載入中，請稍候再試。');
+                        return;
+                    }
+                    const canvas = document.createElement('canvas');
+                    const format = document.getElementById('barcodeFormat').value;
+                    JsBarcode(canvas, safeInput, { 
+                        format: format, 
+                        width: 2, 
+                        height: 60, 
+                        displayValue: false, 
+                        margin: 10
+                    });
+                    card.appendChild(canvas);
+                    downloadTarget = canvas;
+                } else if (type === 'qrcode') {
+                    if (typeof QRious === 'undefined') {
+                        alert('⚠️ QR Code 模組載入中，請稍候再試。');
+                        return;
+                    }
+                    // 使用 QRious 建立 QR Code 畫布
+                    const qrCanvas = document.createElement('canvas');
+                    const qr = new QRious({
+                        element: qrCanvas,
+                        value: safeInput,
+                        size: 180,
+                        level: document.getElementById('qrErrorLevel').value
+                    });
+                    card.appendChild(qrCanvas);
+                    downloadTarget = qrCanvas;
+                }
+            } catch (e) {
+                console.error("生成元件時發生錯誤:", e);
+                alert(`❌ 產生失敗！\n系統訊息: ${e.message || e}`);
+                return; 
+            }
+
             const downloadBtn = document.createElement('button');
             downloadBtn.className = 'btn-download';
             downloadBtn.textContent = '下載圖片';
-            downloadBtn.onclick = () => downloadImage(canvas, safeInput, type);
+            downloadBtn.onclick = () => downloadImage(downloadTarget, safeInput, type);
 
             const removeBtn = document.createElement('button');
             removeBtn.className = 'btn-remove';
@@ -356,7 +358,6 @@
 
             actions.appendChild(downloadBtn);
             actions.appendChild(removeBtn);
-            card.appendChild(canvas);
             card.appendChild(textDisplay);
             card.appendChild(actions);
 
