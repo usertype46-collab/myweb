@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>作業輔助工具集 (字串 & 條碼)</title>
+    <title>作業輔助工具集 (字串 & 條碼) - 強化版</title>
+    <!-- 引入條碼與 QRCode 庫 -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <style>
@@ -17,7 +18,7 @@
             padding: 20px; 
         }
         .container { max-width: 900px; margin: 0 auto; }
-        h1, h2 { text-align: center; color: #2c3e50; }
+        h1 { text-align: center; color: #2c3e50; }
         h2 { font-size: 1.2rem; margin-bottom: 15px; color: #475569; text-align: left; border-left: 4px solid #3b82f6; padding-left: 10px;}
         
         /* 面板共用區塊 */
@@ -68,7 +69,7 @@
             color: #1e293b;
             font-family: inherit;
         }
-        .copy-btn { background: #8b5cf6; color: white; font-weight: bold; width: 100%; margin-bottom: 15px;}
+        .copy-btn { background: #8b5cf6; color: white; font-weight: bold; width: 100%; margin-bottom: 15px; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;}
         .copy-btn:hover { background: #7c3aed; }
 
         /* 條碼控制面板區塊 */
@@ -76,6 +77,7 @@
             display: flex; 
             gap: 10px; 
             flex-wrap: wrap; 
+            align-items: center;
         }
         input[type="text"], select, button { 
             padding: 12px; 
@@ -87,7 +89,7 @@
         input[type="text"] { flex: 1; min-width: 200px; }
         select { background: #eee; outline: none; cursor: pointer; }
         button { cursor: pointer; border: none; }
-        button.add-btn { background: #10b981; color: white; font-weight: bold; }
+        button.add-btn { background: #10b981; color: white; font-weight: bold; padding: 12px 20px;}
         button.add-btn:hover { background: #059669; }
 
         /* 卡片顯示區域 */
@@ -95,17 +97,19 @@
             display: grid; 
             grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
             gap: 20px; 
+            margin-top: 20px;
         }
         .card { 
             background: white; 
             padding: 20px; 
             border-radius: 10px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
             gap: 15px; 
             animation: fadeIn 0.3s ease-in-out;
+            border: 1px solid #e2e8f0;
         }
         .card canvas { max-width: 100%; height: auto; background: white; padding: 10px; border-radius: 4px; }
         .text-display { 
@@ -114,13 +118,14 @@
             font-size: 0.95em; 
             text-align: center; 
             width: 100%;
+            font-weight: bold;
         }
         
         /* 卡片內按鈕區塊 */
         .card-actions { display: flex; gap: 10px; width: 100%; }
-        .btn-download { flex: 1; background: #3b82f6; color: white; }
+        .btn-download { flex: 1; background: #3b82f6; color: white; padding: 10px; border-radius: 6px;}
         .btn-download:hover { background: #2563eb; }
-        .btn-remove { flex: 1; background: #ef4444; color: white; }
+        .btn-remove { flex: 1; background: #ef4444; color: white; padding: 10px; border-radius: 6px;}
         .btn-remove:hover { background: #dc2626; }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
@@ -134,8 +139,6 @@
         <!-- 字串複製產生器區塊 -->
         <div class="panel">
             <h2>回報字串產生器</h2>
-            
-            <!-- 第一行：日期與地點 -->
             <div class="string-row">
                 <div class="date-display" id="todayDate"></div>
                 <select id="locationSelect">
@@ -151,8 +154,6 @@
                     <option value="潮州新生">潮州新生</option>
                 </select>
             </div>
-
-            <!-- 第二行：狀態1 -->
             <div class="string-row">
                 <select id="status1" onchange="renderDynamicInputs('status1', 'dynamic1')">
                     <option value="none">無</option>
@@ -167,8 +168,6 @@
                 </select>
                 <div id="dynamic1" class="dynamic-inputs"></div>
             </div>
-
-            <!-- 第三行：狀態2 -->
             <div class="string-row">
                 <select id="status2" onchange="renderDynamicInputs('status2', 'dynamic2')">
                     <option value="none">無</option>
@@ -183,40 +182,49 @@
                 </select>
                 <div id="dynamic2" class="dynamic-inputs"></div>
             </div>
-
             <button class="copy-btn" onclick="generateAndCopyString()">產生並複製字串</button>
             <textarea id="resultOutput" class="result-box" readonly placeholder="產生的結果會顯示在這裡..."></textarea>
         </div>
 
         <!-- 條碼與 QR Code 產生器區塊 -->
         <div class="panel">
-            <h2>條碼 & QR Code 產生器</h2>
+            <h2>條碼 & QR Code 產生器 (強化版)</h2>
             <div class="control-panel">
-                <input type="text" id="inputValue" placeholder="請輸入任意值 (網址、文字、編號)..." />
-                <select id="codeType">
+                <input type="text" id="inputValue" placeholder="請輸入數值 (例如: SPX30657)..." />
+                
+                <select id="codeType" onchange="toggleAdvancedOptions()">
                     <option value="qrcode">QR Code</option>
                     <option value="barcode">條碼 (Barcode)</option>
                 </select>
-                <button class="add-btn" onclick="generateCode()">新增圖片</button>
+
+                <!-- 條碼專屬進階選項 -->
+                <select id="barcodeFormat" style="display: none;">
+                    <option value="CODE128">CODE128 (支援大小寫英數)</option>
+                    <option value="CODE39">CODE39 (僅支援大寫英數)</option>
+                </select>
+
+                <!-- QRCode 專屬進階選項 -->
+                <select id="qrErrorLevel" style="display: inline-block;">
+                    <option value="M">容錯率: 一般 (M)</option>
+                    <option value="H">容錯率: 高 (H - 適合防遮擋)</option>
+                </select>
+
+                <button class="add-btn" onclick="generateCode()">產生圖片</button>
             </div>
             <div class="grid" id="codeGrid"></div>
         </div>
     </div>
 
     <script>
-        /* ================= 字串產生器邏輯 ================= */
-        
-        // 1. 自動帶入當天日期 (格式: M/D)
+        /* ================= 字串產生器邏輯 (維持原樣) ================= */
         const today = new Date();
         const dateString = `${today.getMonth() + 1}/${today.getDate()}`;
         document.getElementById('todayDate').textContent = dateString;
 
-        // 2. 處理下拉選單的動態輸入框顯示
         function renderDynamicInputs(selectId, dynamicContainerId) {
             const selectVal = document.getElementById(selectId).value;
             const container = document.getElementById(dynamicContainerId);
-            container.innerHTML = ''; // 清空舊的輸入框
-
+            container.innerHTML = '';
             if (selectVal === 'stay_box') {
                 container.innerHTML = `<input type="number" id="${selectId}_v1" class="num-input" placeholder="箱數" min="0">`;
             } else if (selectVal === 'stay_box_naked') {
@@ -228,12 +236,9 @@
             }
         }
 
-        // 3. 取得每一行的組合字串
         function getLineContent(selectId) {
             const val = document.getElementById(selectId).value;
             if (val === 'none') return '';
-            
-            // 擷取動態輸入框的值，若未填寫則預設為 0
             const v1 = document.getElementById(`${selectId}_v1`) ? (document.getElementById(`${selectId}_v1`).value || '0') : '0';
             const v2 = document.getElementById(`${selectId}_v2`) ? (document.getElementById(`${selectId}_v2`).value || '0') : '0';
 
@@ -250,25 +255,17 @@
             }
         }
 
-        // 4. 產生並複製字串
         function generateAndCopyString() {
             const location = document.getElementById('locationSelect').value;
-            
             const line1 = `${dateString} ${location}`;
             const line2 = getLineContent('status1');
             const line3 = getLineContent('status2');
-
-            // 將有內容的行組合起來 (自動過濾掉選擇「無」的空白行)
             const resultLines = [line1];
             if (line2 !== '') resultLines.push(line2);
             if (line3 !== '') resultLines.push(line3);
-
             const finalString = resultLines.join('\n');
-            
-            // 顯示在文字框中
             document.getElementById('resultOutput').value = finalString;
 
-            // 執行複製到剪貼簿
             navigator.clipboard.writeText(finalString).then(() => {
                 alert('✅ 字串已成功複製！\n\n' + finalString);
             }).catch(err => {
@@ -276,46 +273,65 @@
             });
         }
 
-        /* ================= 條碼 & QR Code 產生邏輯 ================= */
+        /* ================= 條碼 & QR Code 強化邏輯 ================= */
         
+        // 切換進階選項的顯示狀態
+        function toggleAdvancedOptions() {
+            const type = document.getElementById('codeType').value;
+            document.getElementById('barcodeFormat').style.display = type === 'barcode' ? 'inline-block' : 'none';
+            document.getElementById('qrErrorLevel').style.display = type === 'qrcode' ? 'inline-block' : 'none';
+        }
+
         async function generateCode() {
             const inputField = document.getElementById('inputValue');
-            const input = inputField.value.trim();
+            let rawInput = inputField.value.trim();
             const type = document.getElementById('codeType').value;
 
-            if (!input) {
-                alert('請先輸入數值！');
+            if (!rawInput) {
+                alert('⚠️ 請先輸入數值！');
                 return;
             }
+
+            // 淨化輸入字串：移除可能導致渲染失敗的零寬度空白字元
+            const safeInput = rawInput.replace(/[\u200B-\u200D\uFEFF]/g, '');
 
             const grid = document.getElementById('codeGrid');
             const card = document.createElement('div');
             card.className = 'card';
-
             const canvas = document.createElement('canvas');
 
             try {
                 if (type === 'barcode') {
-                    JsBarcode(canvas, input, { 
-                        format: "CODE128", 
+                    const format = document.getElementById('barcodeFormat').value;
+                    JsBarcode(canvas, safeInput, { 
+                        format: format, 
                         width: 2, 
                         height: 60, 
                         displayValue: false, 
-                        margin: 0
+                        margin: 10 // 增加邊界讓掃描器更好抓取
                     });
                 } else if (type === 'qrcode') {
-                    // 使用 async/await 確保 QR Code 繪製完成
-                    await QRCode.toCanvas(canvas, input, { width: 180, margin: 1 });
+                    const errorLevel = document.getElementById('qrErrorLevel').value;
+                    await QRCode.toCanvas(canvas, safeInput, { 
+                        width: 180, 
+                        margin: 2, // 適度留白
+                        errorCorrectionLevel: errorLevel 
+                    });
                 }
             } catch (e) {
-                console.error(e);
-                alert('產生失敗！\n※注意：傳統條碼通常不支援中文，若要輸入中文請使用 QR Code。');
-                return;
+                console.error("生成元件時發生錯誤:", e);
+                // 根據錯誤類型提供精準回饋，不再寫死錯誤訊息
+                if (type === 'barcode') {
+                    alert(`❌ 條碼產生失敗！\n\n【原因】您輸入的內容可能不支援目前的條碼格式。\n目前選擇格式: ${document.getElementById('barcodeFormat').value}\n系統訊息: ${e.message || e}`);
+                } else {
+                    alert(`❌ QR Code 產生失敗！\n\n系統訊息: ${e.message || e}`);
+                }
+                return; // 發生錯誤即停止，不把壞掉的卡片加入畫面
             }
 
             const textDisplay = document.createElement('div');
             textDisplay.className = 'text-display';
-            textDisplay.textContent = input;
+            textDisplay.textContent = safeInput;
 
             const actions = document.createElement('div');
             actions.className = 'card-actions';
@@ -323,7 +339,7 @@
             const downloadBtn = document.createElement('button');
             downloadBtn.className = 'btn-download';
             downloadBtn.textContent = '下載圖片';
-            downloadBtn.onclick = () => downloadImage(canvas, input, type);
+            downloadBtn.onclick = () => downloadImage(canvas, safeInput, type);
 
             const removeBtn = document.createElement('button');
             removeBtn.className = 'btn-remove';
@@ -337,6 +353,7 @@
             card.appendChild(actions);
 
             grid.prepend(card); 
+            inputField.value = ''; // 成功後清空輸入框方便下一次輸入
         }
 
         function downloadImage(canvas, text, type) {
