@@ -9,27 +9,27 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f0f2f5;
             margin: 0;
-            padding: 15px;
+            padding: 10px;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-        h1 { color: #333; text-align: center; font-size: 24px; margin-bottom: 15px;}
+        h1 { color: #333; text-align: center; font-size: 22px; margin-bottom: 10px;}
         
         .card {
             background: white;
-            padding: 15px;
+            padding: 12px;
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             width: 100%;
             max-width: 800px;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         .info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
         }
 
         .info-group {
@@ -37,13 +37,13 @@
             flex-direction: column;
         }
         .info-group label {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: bold;
             color: #555;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
         }
         .info-group input {
-            padding: 8px;
+            padding: 6px;
             border: 1px solid #ccc;
             border-radius: 4px;
             font-size: 14px;
@@ -53,12 +53,12 @@
             position: sticky;
             top: 0;
             background: white;
-            padding: 12px;
+            padding: 10px;
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             display: flex;
-            gap: 10px;
+            gap: 8px;
             z-index: 100;
             flex-wrap: wrap;
             justify-content: center;
@@ -67,7 +67,7 @@
         }
         
         select, button {
-            padding: 10px 15px;
+            padding: 8px 12px;
             font-size: 14px;
             cursor: pointer;
             border: none;
@@ -86,7 +86,7 @@
         #drawMode { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; font-weight: bold; }
 
         .canvas-container {
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
             background: white;
             width: 100%;
@@ -103,36 +103,36 @@
             touch-action: none;
             cursor: crosshair;
         }
-        #status { font-weight: bold; color: #007bff; margin-bottom: 15px; text-align: center; width: 100%; }
+        #status { font-weight: bold; color: #007bff; margin-bottom: 10px; text-align: center; width: 100%; font-size: 14px; }
 
         .record-section {
             display: flex;
             gap: 10px;
             width: 100%;
             align-items: center;
-            margin-top: 10px;
-            padding-top: 10px;
+            margin-top: 8px;
+            padding-top: 8px;
             border-top: 1px dashed #ccc;
         }
 
-        /* 放大鏡手寫 Modal 樣式修正 (防止比例變形) */
+        /* 放大鏡手寫 Modal 樣式：改為近乎全螢幕滿版 */
         .modal {
             display: none; 
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
+            background: rgba(0,0,0,0.9);
             z-index: 1000;
             justify-content: center;
             align-items: center;
-            padding: 15px;
+            padding: 5px;
             box-sizing: border-box;
         }
         .modal-content {
             background: white;
-            padding: 20px 15px;
-            border-radius: 12px;
-            width: 100%;
-            max-width: 500px;
+            padding: 10px;
+            border-radius: 8px;
+            width: 98%;
+            max-width: 95vw;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -143,9 +143,9 @@
             position: relative;
             width: 100%;
             background: #fff;
-            margin: 15px 0;
+            margin: 10px 0;
             border: 2px solid #007bff;
-            border-radius: 6px;
+            border-radius: 4px;
             overflow: hidden;
             box-sizing: border-box;
         }
@@ -156,7 +156,7 @@
             touch-action: none;
         }
         .modal-buttons {
-            display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; margin-top: 5px;
+            display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; width: 100%;
         }
         .btn-cancel { background-color: #6c757d; }
         .btn-cancel:hover { background-color: #5a6268; }
@@ -189,13 +189,13 @@
             <option value="zoom">🔍 點擊局部放大寫字 (推薦)</option>
             <option value="draw">✍️ 直接畫筆手寫</option>
         </select>
-        <select id="colorPicker" style="flex-grow: 0; width: 110px;">
+        <select id="colorPicker" style="flex-grow: 0; width: 100px;">
             <option value="blue">🔵 藍筆</option>
             <option value="black">⚫ 黑筆</option>
             <option value="red">🔴 紅筆</option>
         </select>
         <button class="btn-clear" onclick="clearCanvas()">🧹 還原畫布</button>
-        <button class="btn-save" onclick="saveAndUploadToGoogleDrive()">☁️ 儲存截圖至 Google Drive</button>
+        <button class="btn-save" onclick="saveAndUploadToGoogleDrive()">☁️ 儲存至 Google Drive</button>
     </div>
     
     <div id="status">正在連線至 Google Drive 載入空白底圖...</div>
@@ -208,12 +208,12 @@
         <canvas id="canvas2"></canvas>
     </div>
 
-    <!-- 放大手寫區 Modal -->
+    <!-- 放大手寫區 Modal (滿版優化) -->
     <div id="zoomModal" class="modal">
         <div class="modal-content">
             <div style="text-align: center; width: 100%;">
-                <h3 style="margin-top:0; color:#333; margin-bottom: 5px;">🔍 局部放大手寫區</h3>
-                <p style="font-size:13px; color:#666; margin-bottom: 0;">請在下方區域書寫，完成後點擊「確認寫入」。</p>
+                <h3 style="margin:0 0 3px 0; color:#333; font-size:16px;">🔍 局部放大手寫區 (滿版模式)</h3>
+                <p style="font-size:12px; color:#666; margin:0;">請在下方區域書寫，完成後點擊「確認寫入」。</p>
             </div>
             
             <div class="modal-canvas-wrapper" id="modalCanvasWrapper">
@@ -345,7 +345,8 @@
             ctx.moveTo(lastX, lastY);
             ctx.lineTo(pos.x, pos.y);
             ctx.strokeStyle = color;
-            ctx.lineWidth = isModal ? 5 : 3; 
+            // 畫筆調細：放大視窗改為 2.5，一般畫布改為 1.2
+            ctx.lineWidth = isModal ? 2.5 : 1.2; 
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.stroke();
@@ -383,9 +384,9 @@
         function openZoomModal(e, canvas) {
             const pos = getCoordinates(e, canvas);
             
-            // 固定合適的書寫檢視區大小與比例 (400x200，比例 2:1，確保好寫且絕不變形)
-            let cw = 400;
-            let ch = 200;
+            // 放大區域大小隨手機畫面寬度擴展，佔滿大部分畫面
+            let cw = Math.min(window.innerWidth - 30, 700);
+            let ch = cw / 2.2; // 保持寬扁舒適比例
 
             let sx = pos.x - cw / 2;
             let sy = pos.y - ch / 2;
@@ -405,7 +406,6 @@
             const mw = cw * SCALE;
             const mh = ch * SCALE;
 
-            // 強制設定容器與內部畫布的長寬比完全一致 (2:1)
             wrapper.style.aspectRatio = `${cw} / ${ch}`;
             modalBg.width = mw; 
             modalBg.height = mh;
