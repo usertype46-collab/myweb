@@ -115,38 +115,45 @@
             border-top: 1px dashed #ccc;
         }
 
-        /* 放大鏡手寫 Modal 樣式 (微調寬度讓排版更適合大範圍書寫) */
+        /* 放大鏡手寫 Modal 樣式 - 手機滿版設定 */
         .modal {
             display: none; 
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.85);
             z-index: 1000;
             justify-content: center;
             align-items: center;
-            padding: 10px;
+            padding: 0;
             box-sizing: border-box;
         }
         .modal-content {
             background: white;
-            padding: 15px;
-            border-radius: 12px;
+            padding: 15px 10px;
+            border-radius: 0;
             width: 100%;
-            max-width: 900px;
+            height: 100%;
+            max-width: none;
+            max-height: none;
             display: flex;
             flex-direction: column;
             align-items: center;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            justify-content: space-between;
+            box-sizing: border-box;
         }
         .modal-canvas-wrapper {
             position: relative;
             width: 100%;
+            flex-grow: 1;
             background: #f8f9fa;
             margin: 10px 0;
             border: 2px dashed #007bff;
             border-radius: 6px;
             box-sizing: border-box;
             overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         .modal-canvas-wrapper canvas {
             position: absolute;
@@ -185,7 +192,7 @@
 
     <div class="toolbar">
         <select id="drawMode">
-            <option value="zoom">🔍 點擊超大局部放大寫字 (推薦)</option>
+            <option value="zoom">🔍 點擊滿版局部放大寫字 (推薦)</option>
             <option value="draw">✍️ 直接畫筆手寫</option>
         </select>
         <select id="colorPicker" style="flex-grow: 0; width: 110px;">
@@ -207,11 +214,13 @@
         <canvas id="canvas2"></canvas>
     </div>
 
-    <!-- 放大手寫區 Modal -->
+    <!-- 放大手寫區 Modal (手機滿版) -->
     <div id="zoomModal" class="modal">
         <div class="modal-content">
-            <h3 style="margin-top:0; color:#333; margin-bottom: 2px;">🔍 超大局部放大手寫區</h3>
-            <p style="font-size:12px; color:#666; margin-bottom: 0;">已大幅放大區域，請輕鬆書寫，完成後點擊「確認寫入」。</p>
+            <div style="text-align: center; width: 100%;">
+                <h3 style="margin-top:0; color:#333; margin-bottom: 2px;">🔍 手機滿版局部放大手寫區</h3>
+                <p style="font-size:12px; color:#666; margin-bottom: 0;">請在下方區域書寫，完成後點擊「確認寫入」。</p>
+            </div>
             
             <div class="modal-canvas-wrapper" id="modalCanvasWrapper">
                 <canvas id="modalBgCanvas"></canvas>
@@ -280,7 +289,7 @@
 
                         loadedCount++;
                         if (loadedCount === configs.length) {
-                            statusEl.innerText = "✅ 已成功讀取底圖，點選圖片區域即可超大放大手寫！";
+                            statusEl.innerText = "✅ 已成功讀取底圖，點選圖片區域即可滿版放大手寫！";
                             statusEl.style.color = "#28a745";
                         }
                     };
@@ -342,7 +351,6 @@
             ctx.moveTo(lastX, lastY);
             ctx.lineTo(pos.x, pos.y);
             ctx.strokeStyle = color;
-            // 放大鏡模式下畫筆粗細適中，配合 3 倍放大非常清晰
             ctx.lineWidth = isModal ? 6 : 3; 
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
@@ -381,9 +389,9 @@
         function openZoomModal(e, canvas) {
             const pos = getCoordinates(e, canvas);
             
-            // **調整點 1：將擷取範圍縮小至 250 x 120 (原本是 500x250)，讓視野更局部、更放大！**
-            let cw = Math.min(250, canvas.width);
-            let ch = Math.min(120, canvas.height);
+            // 讓擷取範圍更寬廣，配合手機滿版畫面
+            let cw = Math.min(350, canvas.width);
+            let ch = Math.min(150, canvas.height);
 
             let sx = pos.x - cw / 2;
             let sy = pos.y - ch / 2;
@@ -399,7 +407,6 @@
             const modalDraw = document.getElementById('modalDrawCanvas');
             const wrapper = document.getElementById('modalCanvasWrapper');
 
-            // **調整點 2：放大倍率提升至 3 倍 (SCALE = 3)**
             const SCALE = 3;
             const mw = cw * SCALE;
             const mh = ch * SCALE;
