@@ -15,8 +15,37 @@
             flex-direction: column;
             align-items: center;
         }
-        h1 { color: #333; text-align: center; font-size: 24px; margin-bottom: 20px;}
+        h1 { color: #333; text-align: center; font-size: 24px; margin-bottom: 15px;}
         
+        .info-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .info-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .info-group label {
+            font-size: 13px;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 4px;
+        }
+        .info-group input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
         .toolbar {
             position: sticky;
             top: 0;
@@ -75,6 +104,25 @@
 
     <h1>📝 實習檢核表 - 線上簽核</h1>
 
+    <div class="info-card">
+        <div class="info-group">
+            <label>📅 實習日期：</label>
+            <input type="date" id="internshipDate">
+        </div>
+        <div class="info-group">
+            <label>👤 名稱 (填寫人)：</label>
+            <input type="text" id="staffName" placeholder="請輸入您的姓名">
+        </div>
+        <div class="info-group">
+            <label>🌱 種子人員 1：</label>
+            <input type="text" id="seedStaff1" placeholder="種子人員 1 姓名">
+        </div>
+        <div class="info-group">
+            <label>🌱 種子人員 2：</label>
+            <input type="text" id="seedStaff2" placeholder="種子人員 2 姓名">
+        </div>
+    </div>
+
     <div class="toolbar">
         <select id="colorPicker">
             <option value="blue">藍筆 (Blue)</option>
@@ -82,11 +130,10 @@
             <option value="red">紅筆 (Red)</option>
         </select>
         <button class="btn-clear" onclick="clearCanvas()">🧹 還原畫布</button>
-        <button onclick="downloadImage()">⬇️ 下載截圖</button>
-        <button class="btn-save" onclick="saveToSupabase()">☁️ 儲存截圖並上傳</button>
+        <button class="btn-save" onclick="saveAndUploadToSupabase()">☁️ 儲存紀錄、下載截圖並上傳</button>
     </div>
     
-    <div id="status">正在連線至 Supabase 取得圖檔...</div>
+    <div id="status">正在從 Supabase 載入圖檔...</div>
 
     <div class="canvas-container">
         <canvas id="canvas1"></canvas>
@@ -102,7 +149,6 @@
         const supabaseKey = 'sb_publishable_TR5C2Zc7eOj9uUosUUsX4g_KbBOwey2';
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        // 透過 Supabase SDK 直接取得公開網址，避免手動串接字串出錯
         const { data: url1 } = supabase.storage.from('templates').getPublicUrl('checklist_1.jpg');
         const { data: url2 } = supabase.storage.from('templates').getPublicUrl('checklist_2.jpg');
 
@@ -114,64 +160,69 @@
         let isDrawing = false;
         let lastX = 0, lastY = 0;
 
-        function initCanvas(config) {
-            const canvas = document.getElementById(config.id);
-            const ctx = canvas.getContext('2d');
-            config.ctx = ctx;
+        // 透過 fetch 轉為 Base64 載入，完美解決 CORS 跨來源白畫面問題
+        async function loadImagesViaBase64() {
+            const statusEl = document.getElementById('status');
+            let loadedCount = 0;
 
-            const img = new Image();
-            img.crossOrigin = "anonymous";
+            for (let i = 0; i < configs.length; i++) {
+                const config = configs[i];
+                const canvas = document.getElementById(config.id);
+                const ctx = canvas.getContext('2d');
+                config.ctx = ctx;
 
-            // 設定 6 秒超時保護，避免網路卡住時無限等待空白
-            const timer = setTimeout(() => {
-                if (!config.loaded) {
-                    console.warn(`圖片載入超時，啟動備用畫布: ${config.id}`);
+                try {
+                    const response = await fetch(config.src + "?t=" + Date.now());
+                    if (!response.ok) throw new Error("網路請求失敗");
+                    const blob = await response.blob();
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = new Image();
+                        img.onload = () => {
+                            config.img = img;
+                            config.loaded = true;
+
+                            const MAX_WIDTH = 1200;
+                            let targetWidth = img.width;
+                            let targetHeight = img.height;
+
+                            if (targetWidth > MAX_WIDTH) {
+                                targetHeight = (MAX_WIDTH / targetWidth) * targetHeight;
+                                targetWidth = MAX_WIDTH;
+                            }
+
+                            canvas.width = targetWidth;
+                            canvas.height = targetHeight;
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                            loadedCount++;
+                            if (loadedCount === configs.length) {
+                                statusEl.innerText = "✅ 圖檔載入完成，可以開始手寫！";
+                                statusEl.style.color = "#28a745";
+                            }
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(blob);
+
+                } catch (err) {
+                    console.error("載入失敗，啟動備用畫布", err);
                     createFallbackCanvas(canvas, ctx, config.id);
                     config.loaded = true;
-                    checkAllLoaded();
-                }
-            }, 6000);
-
-            img.onload = () => {
-                clearTimeout(timer);
-                config.img = img;
-                config.loaded = true;
-
-                const MAX_WIDTH = 1200;
-                let targetWidth = img.width;
-                let targetHeight = img.height;
-
-                if (targetWidth > MAX_WIDTH) {
-                    targetHeight = (MAX_WIDTH / targetWidth) * targetHeight;
-                    targetWidth = MAX_WIDTH;
+                    loadedCount++;
                 }
 
-                canvas.width = targetWidth;
-                canvas.height = targetHeight;
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                checkAllLoaded();
-            };
+                // 註冊繪圖互動事件
+                canvas.addEventListener('mousedown', (e) => startDrawing(e, canvas));
+                canvas.addEventListener('mousemove', (e) => draw(e, canvas, ctx));
+                canvas.addEventListener('mouseup', stopDrawing);
+                canvas.addEventListener('mouseout', stopDrawing);
 
-            img.onerror = (err) => {
-                clearTimeout(timer);
-                console.error(`圖片載入發生錯誤 (${config.id}):`, err);
-                createFallbackCanvas(canvas, ctx, config.id);
-                config.loaded = true;
-                checkAllLoaded();
-            };
-
-            // 加上時間戳防止快取
-            img.src = config.src + (config.src.includes('?') ? '&' : '?') + 't=' + Date.now();
-
-            // 註冊事件
-            canvas.addEventListener('mousedown', (e) => startDrawing(e, canvas));
-            canvas.addEventListener('mousemove', (e) => draw(e, canvas, ctx));
-            canvas.addEventListener('mouseup', stopDrawing);
-            canvas.addEventListener('mouseout', stopDrawing);
-
-            canvas.addEventListener('touchstart', (e) => startDrawing(e, canvas), { passive: false });
-            canvas.addEventListener('touchmove', (e) => draw(e, canvas, ctx), { passive: false });
-            canvas.addEventListener('touchend', stopDrawing);
+                canvas.addEventListener('touchstart', (e) => startDrawing(e, canvas), { passive: false });
+                canvas.addEventListener('touchmove', (e) => draw(e, canvas, ctx), { passive: false });
+                canvas.addEventListener('touchend', stopDrawing);
+            }
         }
 
         function createFallbackCanvas(canvas, ctx, id) {
@@ -183,22 +234,13 @@
             ctx.font = "bold 20px sans-serif";
             ctx.fillText(`⚠️ 遠端圖檔載入失敗 (${id})`, 30, 50);
             ctx.font = "14px sans-serif";
-            ctx.fillText("請檢查 Supabase Storage 是否確實存在 'checklist_1.jpg' 與 'checklist_2.jpg'", 30, 90);
-            ctx.fillText("您仍可在此空白區域進行手寫測試或截圖。", 30, 120);
-        }
-
-        let totalLoaded = 0;
-        function checkAllLoaded() {
-            totalLoaded++;
-            if (totalLoaded >= configs.length) {
-                const statusEl = document.getElementById('status');
-                statusEl.innerText = "✅ 系統就緒，可以開始手寫！";
-                statusEl.style.color = "#28a745";
-            }
+            ctx.fillText("請檢查 Supabase Storage 是否確實存在 checklist_1.jpg 與 checklist_2.jpg", 30, 90);
         }
 
         window.onload = () => {
-            configs.forEach(config => initCanvas(config));
+            // 自動預設填入今天的日期
+            document.getElementById('internshipDate').valueAsDate = new Date();
+            loadImagesViaBase64();
         };
 
         function getCoordinates(e, canvas) {
@@ -268,27 +310,29 @@
             setTimeout(() => document.getElementById('status').innerText = "✅ 系統就緒，可以開始手寫！", 2000);
         }
 
-        function downloadImage() {
-            configs.forEach((config, index) => {
-                const canvas = document.getElementById(config.id);
-                const dataURL = canvas.toDataURL('image/jpeg', 0.9);
-                const link = document.createElement('a');
-                link.download = `completed_form_page_${index + 1}.jpg`;
-                link.href = dataURL;
-                link.click();
-            });
-            document.getElementById('status').innerText = "✅ 已下載截圖！";
-        }
-
         function canvasToBlobAsync(canvas) {
             return new Promise((resolve) => {
                 canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85);
             });
         }
 
-        async function saveToSupabase() {
+        // 儲存至 Supabase 資料庫與儲存桶，並自動下載截圖
+        async function saveAndUploadToSupabase() {
             const statusText = document.getElementById('status');
-            statusText.innerText = "⏳ 正在上傳至 Supabase，請稍候...";
+            
+            // 取得上方填寫的資訊
+            const internshipDate = document.getElementById('internshipDate').value;
+            const staffName = document.getElementById('staffName').value.trim();
+            const seedStaff1 = document.getElementById('seedStaff1').value.trim();
+            const seedStaff2 = document.getElementById('seedStaff2').value.trim();
+
+            if (!staffName) {
+                alert("請填寫「名稱 (填寫人)」後再進行儲存！");
+                document.getElementById('staffName').focus();
+                return;
+            }
+
+            statusText.innerText = "⏳ 正在處理並上傳至 Supabase，請稍候...";
             statusText.style.color = "#007bff";
             
             try {
@@ -296,38 +340,59 @@
                     const config = configs[i];
                     const canvas = document.getElementById(config.id);
                     const blob = await canvasToBlobAsync(canvas);
-                    const filename = `signed_${Date.now()}_page${i+1}.jpg`;
+                    
+                    // 組合符合您要求的命名與紀錄格式
+                    const safeName = staffName.replace(/[\/\\?%*:|"<>]/g, '_');
+                    const filename = `${internshipDate}_${safeName}_page${i+1}.jpg`;
 
+                    // 1. 下載截圖至本機裝置
+                    const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+                    const link = document.createElement('a');
+                    link.download = filename;
+                    link.href = dataURL;
+                    link.click();
+
+                    // 2. 上傳至 Supabase Storage (completed_forms)
                     const { error: storageError } = await supabase.storage
                         .from('completed_forms')
                         .upload(filename, blob, {
                             cacheControl: '3600',
-                            upsert: false
+                            upsert: true
                         });
 
                     if (storageError) throw storageError;
 
+                    // 3. 取得公開網址
                     const { data: publicUrlData } = supabase.storage
                         .from('completed_forms')
                         .getPublicUrl(filename);
                     
                     const fileUrl = publicUrlData.publicUrl;
 
+                    // 4. 寫入資料庫 form_records 紀錄表
                     const { error: dbError } = await supabase
                         .from('form_records')
                         .insert([
-                            { file_name: filename, image_url: fileUrl }
+                            { 
+                                file_name: filename, 
+                                image_url: fileUrl,
+                                internship_date: internshipDate,
+                                staff_name: staffName,
+                                seed_staff_1: seedStaff1,
+                                seed_staff_2: seedStaff2
+                            }
                         ]);
 
                     if (dbError) throw dbError;
                 }
                 
-                statusText.innerText = "✅ 儲存成功！資料已同步至 Supabase。";
+                statusText.innerText = "✅ 儲存成功！截圖已下載，資料已完整寫入 Supabase。";
                 statusText.style.color = "green";
 
                 setTimeout(() => {
                     clearCanvas();
-                }, 2000);
+                    statusText.innerText = "✅ 畫面已還原，可以進行下一位填寫！";
+                }, 3000);
 
             } catch (error) {
                 console.error("Upload error:", error);
