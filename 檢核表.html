@@ -81,8 +81,8 @@
             <option value="black">黑筆 (Black)</option>
             <option value="red">紅筆 (Red)</option>
         </select>
-        <button class="btn-clear" onclick="clearCanvas()">🧹 清除</button>
-        <button onclick="downloadImage()">⬇️ 下載</button>
+        <button class="btn-clear" onclick="clearCanvas()">🧹 清除重寫</button>
+        <button onclick="downloadImage()">⬇️ 下載圖片</button>
         <button class="btn-save" onclick="saveToSupabase()">☁️ 儲存並上傳至 Supabase</button>
     </div>
     
@@ -102,10 +102,10 @@
         const supabaseKey = 'sb_publishable_TR5C2Zc7eOj9uUosUUsX4g_KbBOwey2';
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        // 【已修正路徑】配合您的檔案結構，圖片存放在 templates 資料夾內
+        // 圖片直接放在根目錄，不需要 templates 資料夾
         const configs = [
-            { id: 'canvas1', src: './templates/1604.jpg', ctx: null, img: null, loaded: false },
-            { id: 'canvas2', src: './templates/1603.jpg', ctx: null, img: null, loaded: false }
+            { id: 'canvas1', src: '1604.jpg', ctx: null, img: null, loaded: false },
+            { id: 'canvas2', src: '1603.jpg', ctx: null, img: null, loaded: false }
         ];
 
         let isDrawing = false;
@@ -115,6 +115,14 @@
         window.onload = () => {
             let loadedCount = 0;
             const statusEl = document.getElementById('status');
+
+            // 設置 8 秒防卡死計時器，避免手機網路慢或檔案找不到時無限卡住
+            const timeoutTimer = setTimeout(() => {
+                if (loadedCount < configs.length) {
+                    statusEl.innerText = "❌ 圖片載入超時！請檢查檔名是否完全正確 (需為 1604.jpg 與 1603.jpg)";
+                    statusEl.style.color = "red";
+                }
+            }, 8000);
 
             configs.forEach(config => {
                 const canvas = document.getElementById(config.id);
@@ -143,12 +151,14 @@
                     
                     loadedCount++;
                     if (loadedCount === configs.length) {
+                        clearTimeout(timeoutTimer);
                         statusEl.innerText = "✅ 圖片載入完成，可以開始手寫！";
                         statusEl.style.color = "#28a745";
                     }
                 };
 
                 img.onerror = (err) => {
+                    clearTimeout(timeoutTimer);
                     console.error("Image load failed:", config.src, err);
                     canvas.width = 400;
                     canvas.height = 150;
@@ -156,10 +166,10 @@
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     ctx.fillStyle = "#721c24";
                     ctx.font = "bold 16px sans-serif";
-                    ctx.fillText("❌ 圖片載入失敗", 20, 40);
+                    ctx.fillText("❌ 找不到圖片檔案", 20, 40);
                     ctx.font = "13px sans-serif";
-                    ctx.fillText("找不到路徑: " + config.src, 20, 75);
-                    statusEl.innerText = "⚠️ 部分圖片載入失敗，請檢查路徑";
+                    ctx.fillText("請將 " + config.src + " 放在與網頁同一個資料夾", 20, 75);
+                    statusEl.innerText = "⚠️ 圖片載入失敗，請確認檔案位置";
                     statusEl.style.color = "red";
                 };
 
@@ -275,7 +285,6 @@
                     const blob = await canvasToBlobAsync(canvas);
                     const filename = `signed_${Date.now()}_page${i+1}.jpg`;
 
-                    // 1. 上傳至 Supabase Storage
                     const { data: storageData, error: storageError } = await supabase.storage
                         .from('completed_forms')
                         .upload(filename, blob, {
@@ -285,14 +294,12 @@
 
                     if (storageError) throw storageError;
 
-                    // 2. 獲取公共網址
                     const { data: publicUrlData } = supabase.storage
                         .from('completed_forms')
                         .getPublicUrl(filename);
                     
                     const fileUrl = publicUrlData.publicUrl;
 
-                    // 3. 寫入 Database 表格紀錄同步
                     const { error: dbError } = await supabase
                         .from('form_records')
                         .insert([
