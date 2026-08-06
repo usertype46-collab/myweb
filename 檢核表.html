@@ -115,7 +115,7 @@
             border-top: 1px dashed #ccc;
         }
 
-        /* 放大鏡手寫 Modal 樣式：加大高度與空間 */
+        /* 放大鏡手寫 Modal 樣式：改為滿版自適應 */
         .modal {
             display: none; 
             position: fixed;
@@ -124,15 +124,17 @@
             z-index: 1000;
             justify-content: center;
             align-items: center;
-            padding: 8px;
+            padding: 15px; /* 增加外圍留白，避免貼齊邊緣 */
             box-sizing: border-box;
         }
         .modal-content {
             background: white;
-            padding: 12px;
-            border-radius: 8px;
+            padding: 15px;
+            border-radius: 12px;
             width: 100%;
-            max-width: 550px;
+            max-width: 600px;
+            height: 90vh; /* 關鍵 1：設定彈窗高度佔螢幕 90% */
+            max-height: 900px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -142,12 +144,13 @@
         .modal-canvas-wrapper {
             position: relative;
             width: 100%;
-            background: #fff;
-            margin: 12px 0;
+            flex-grow: 1; /* 關鍵 2：讓畫布區塊自動填滿所有剩餘高度 */
+            margin: 15px 0;
             border: 2px solid #007bff;
-            border-radius: 4px;
+            border-radius: 8px;
             overflow: hidden;
             box-sizing: border-box;
+            /* 移除舊版的 aspect-ratio，改由 JS 動態去適應 */
         }
         .modal-canvas-wrapper canvas {
             position: absolute;
@@ -382,15 +385,35 @@
         }
 
         function openZoomModal(e, canvas) {
-            const pos = getCoordinates(e, canvas);
-            
-            // 調整長寬比例為舒適的 1.6 : 1（具備足夠的高度，不再扁平）
-            let cw = 450;
-            let ch = 280;
+            const modal = document.getElementById('zoomModal');
+            const wrapper = document.getElementById('modalCanvasWrapper');
+            const modalBg = document.getElementById('modalBgCanvas');
+            const modalDraw = document.getElementById('modalDrawCanvas');
 
+            // 1. 先顯示 Modal，讓瀏覽器 Flexbox 計算出實際的自適應長寬
+            modal.style.display = 'flex';
+            
+            // 2. 取得手寫區真正渲染出來的實際像素大小
+            const rect = wrapper.getBoundingClientRect();
+            const wrapW = rect.width;
+            const wrapH = rect.height;
+            
+            // 3. 根據實際比例決定裁切大小 (以寬度 400px 為基準去推算高度，確保比例完美吻合不變形)
+            let cw = 400;
+            let ch = cw * (wrapH / wrapW);
+
+            // 確保裁切範圍不會超出原圖底圖高度
+            if (ch > canvas.height) {
+                ch = canvas.height;
+                cw = ch * (wrapW / wrapH);
+            }
+
+            // 4. 計算裁切起點 (以點擊位置為中心)
+            const pos = getCoordinates(e, canvas);
             let sx = pos.x - cw / 2;
             let sy = pos.y - ch / 2;
 
+            // 邊界防呆機制
             if (sx < 0) sx = 0;
             if (sy < 0) sy = 0;
             if (sx + cw > canvas.width) sx = canvas.width - cw;
@@ -398,27 +421,19 @@
 
             zoomContext = { targetCanvas: canvas, sx, sy, cw, ch };
 
-            const modalBg = document.getElementById('modalBgCanvas');
-            const modalDraw = document.getElementById('modalDrawCanvas');
-            const wrapper = document.getElementById('modalCanvasWrapper');
-
+            // 5. 設定畫布內部高解析度 (3倍)，維持字跡平滑
             const SCALE = 3;
-            const mw = cw * SCALE;
-            const mh = ch * SCALE;
+            modalBg.width = wrapW * SCALE; 
+            modalBg.height = wrapH * SCALE;
+            modalDraw.width = wrapW * SCALE; 
+            modalDraw.height = wrapH * SCALE;
 
-            wrapper.style.aspectRatio = `${cw} / ${ch}`;
-            modalBg.width = mw; 
-            modalBg.height = mh;
-            modalDraw.width = mw; 
-            modalDraw.height = mh;
-
+            // 6. 畫上底圖
             const bgCtx = modalBg.getContext('2d');
-            bgCtx.drawImage(canvas, sx, sy, cw, ch, 0, 0, mw, mh);
+            bgCtx.drawImage(canvas, sx, sy, cw, ch, 0, 0, modalBg.width, modalBg.height);
 
             clearModalCanvas();
-
-            document.getElementById('zoomModal').style.display = 'flex';
-            document.body.style.overflow = 'hidden';
+            document.body.style.overflow = 'hidden'; // 禁止背後畫面滾動
         }
 
         function clearModalCanvas() {
