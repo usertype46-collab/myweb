@@ -115,7 +115,7 @@
             border-top: 1px dashed #ccc;
         }
 
-        /* 放大鏡手寫 Modal 樣式：改為滿版自適應 */
+        /* 放大鏡手寫 Modal 樣式：滿版自適應 */
         .modal {
             display: none; 
             position: fixed;
@@ -124,7 +124,7 @@
             z-index: 1000;
             justify-content: center;
             align-items: center;
-            padding: 15px; /* 增加外圍留白，避免貼齊邊緣 */
+            padding: 15px; 
             box-sizing: border-box;
         }
         .modal-content {
@@ -133,7 +133,7 @@
             border-radius: 12px;
             width: 100%;
             max-width: 600px;
-            height: 90vh; /* 關鍵 1：設定彈窗高度佔螢幕 90% */
+            height: 90vh; 
             max-height: 900px;
             display: flex;
             flex-direction: column;
@@ -144,13 +144,12 @@
         .modal-canvas-wrapper {
             position: relative;
             width: 100%;
-            flex-grow: 1; /* 關鍵 2：讓畫布區塊自動填滿所有剩餘高度 */
+            flex-grow: 1; 
             margin: 15px 0;
             border: 2px solid #007bff;
             border-radius: 8px;
             overflow: hidden;
             box-sizing: border-box;
-            /* 移除舊版的 aspect-ratio，改由 JS 動態去適應 */
         }
         .modal-canvas-wrapper canvas {
             position: absolute;
@@ -348,8 +347,9 @@
             ctx.moveTo(lastX, lastY);
             ctx.lineTo(pos.x, pos.y);
             ctx.strokeStyle = color;
-            // 畫筆維持細緻：放大視窗 2.0，一般畫布 1.2
-            ctx.lineWidth = isModal ? 2.0 : 1.2; 
+            
+            // 【關鍵修正 2】放大區的筆刷需加粗 (8.0)，以因應 3 倍解析度，確保手機上好寫
+            ctx.lineWidth = isModal ? 8.0 : 1.5; 
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.stroke();
@@ -390,7 +390,7 @@
             const modalBg = document.getElementById('modalBgCanvas');
             const modalDraw = document.getElementById('modalDrawCanvas');
 
-            // 1. 先顯示 Modal，讓瀏覽器 Flexbox 計算出實際的自適應長寬
+            // 1. 先顯示 Modal，讓瀏覽器計算出實際的自適應長寬
             modal.style.display = 'flex';
             
             // 2. 取得手寫區真正渲染出來的實際像素大小
@@ -398,8 +398,8 @@
             const wrapW = rect.width;
             const wrapH = rect.height;
             
-            // 3. 根據實際比例決定裁切大小 (以寬度 400px 為基準去推算高度，確保比例完美吻合不變形)
-            let cw = 400;
+            // 【關鍵修正 1】把裁切基準寬度從 400 縮小至 180，創造真正的「特寫放大」效果
+            let cw = 180;
             let ch = cw * (wrapH / wrapW);
 
             // 確保裁切範圍不會超出原圖底圖高度
@@ -433,7 +433,7 @@
             bgCtx.drawImage(canvas, sx, sy, cw, ch, 0, 0, modalBg.width, modalBg.height);
 
             clearModalCanvas();
-            document.body.style.overflow = 'hidden'; // 禁止背後畫面滾動
+            document.body.style.overflow = 'hidden'; 
         }
 
         function clearModalCanvas() {
