@@ -81,12 +81,12 @@
             <option value="black">黑筆 (Black)</option>
             <option value="red">紅筆 (Red)</option>
         </select>
-        <button class="btn-clear" onclick="clearCanvas()">🧹 還原為空白表單</button>
-        <button onclick="downloadImage()">⬇️ 下載截圖至裝置</button>
-        <button class="btn-save" onclick="saveToSupabase()">☁️ 儲存截圖並還原</button>
+        <button class="btn-clear" onclick="clearCanvas()">🧹 還原畫布</button>
+        <button onclick="downloadImage()">⬇️ 下載截圖</button>
+        <button class="btn-save" onclick="saveToSupabase()">☁️ 儲存截圖並上傳</button>
     </div>
     
-    <div id="status">正在從 Supabase 載入原始圖檔，請稍候...</div>
+    <div id="status">正在連線至 Supabase 取得圖檔...</div>
 
     <div class="canvas-container">
         <canvas id="canvas1"></canvas>
@@ -102,105 +102,103 @@
         const supabaseKey = 'sb_publishable_TR5C2Zc7eOj9uUosUUsX4g_KbBOwey2';
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        // Supabase templates 儲存桶公開網址前綴
-        const templateBaseUrl = `${supabaseUrl}/storage/v1/object/public/templates/`;
+        // 透過 Supabase SDK 直接取得公開網址，避免手動串接字串出錯
+        const { data: url1 } = supabase.storage.from('templates').getPublicUrl('checklist_1.jpg');
+        const { data: url2 } = supabase.storage.from('templates').getPublicUrl('checklist_2.jpg');
 
-        // 設定直接從 Supabase 讀取圖檔 (使用修正後的純英文檔名)
         const configs = [
-            { 
-                id: 'canvas1', 
-                src: `${templateBaseUrl}checklist_1.jpg`, 
-                ctx: null, img: null, loaded: false 
-            },
-            { 
-                id: 'canvas2', 
-                src: `${templateBaseUrl}checklist_2.jpg`, 
-                ctx: null, img: null, loaded: false 
-            }
+            { id: 'canvas1', src: url1.publicUrl, ctx: null, img: null, loaded: false },
+            { id: 'canvas2', src: url2.publicUrl, ctx: null, img: null, loaded: false }
         ];
 
         let isDrawing = false;
         let lastX = 0, lastY = 0;
 
-        // 從 Supabase 載入圖片
-        function loadConfigImage(config, callback) {
+        function initCanvas(config) {
+            const canvas = document.getElementById(config.id);
+            const ctx = canvas.getContext('2d');
+            config.ctx = ctx;
+
             const img = new Image();
-            // 必須設定 Anonymous，才能允許 Canvas 匯出圖片避免 CORS 錯誤
-            img.crossOrigin = "Anonymous";
+            img.crossOrigin = "anonymous";
+
+            // 設定 6 秒超時保護，避免網路卡住時無限等待空白
+            const timer = setTimeout(() => {
+                if (!config.loaded) {
+                    console.warn(`圖片載入超時，啟動備用畫布: ${config.id}`);
+                    createFallbackCanvas(canvas, ctx, config.id);
+                    config.loaded = true;
+                    checkAllLoaded();
+                }
+            }, 6000);
 
             img.onload = () => {
+                clearTimeout(timer);
                 config.img = img;
                 config.loaded = true;
-                callback(true);
+
+                const MAX_WIDTH = 1200;
+                let targetWidth = img.width;
+                let targetHeight = img.height;
+
+                if (targetWidth > MAX_WIDTH) {
+                    targetHeight = (MAX_WIDTH / targetWidth) * targetHeight;
+                    targetWidth = MAX_WIDTH;
+                }
+
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                checkAllLoaded();
             };
 
-            img.onerror = () => {
-                callback(false);
+            img.onerror = (err) => {
+                clearTimeout(timer);
+                console.error(`圖片載入發生錯誤 (${config.id}):`, err);
+                createFallbackCanvas(canvas, ctx, config.id);
+                config.loaded = true;
+                checkAllLoaded();
             };
 
-            // 加上時間戳防止瀏覽器快取導致 CORS 失敗
-            img.src = config.src + "?t=" + new Date().getTime();
+            // 加上時間戳防止快取
+            img.src = config.src + (config.src.includes('?') ? '&' : '?') + 't=' + Date.now();
+
+            // 註冊事件
+            canvas.addEventListener('mousedown', (e) => startDrawing(e, canvas));
+            canvas.addEventListener('mousemove', (e) => draw(e, canvas, ctx));
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+
+            canvas.addEventListener('touchstart', (e) => startDrawing(e, canvas), { passive: false });
+            canvas.addEventListener('touchmove', (e) => draw(e, canvas, ctx), { passive: false });
+            canvas.addEventListener('touchend', stopDrawing);
         }
 
-        // 初始化畫布與載入背景圖
+        function createFallbackCanvas(canvas, ctx, id) {
+            canvas.width = 800;
+            canvas.height = 600;
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#333333";
+            ctx.font = "bold 20px sans-serif";
+            ctx.fillText(`⚠️ 遠端圖檔載入失敗 (${id})`, 30, 50);
+            ctx.font = "14px sans-serif";
+            ctx.fillText("請檢查 Supabase Storage 是否確實存在 'checklist_1.jpg' 與 'checklist_2.jpg'", 30, 90);
+            ctx.fillText("您仍可在此空白區域進行手寫測試或截圖。", 30, 120);
+        }
+
+        let totalLoaded = 0;
+        function checkAllLoaded() {
+            totalLoaded++;
+            if (totalLoaded >= configs.length) {
+                const statusEl = document.getElementById('status');
+                statusEl.innerText = "✅ 系統就緒，可以開始手寫！";
+                statusEl.style.color = "#28a745";
+            }
+        }
+
         window.onload = () => {
-            let loadedCount = 0;
-            const statusEl = document.getElementById('status');
-
-            configs.forEach(config => {
-                const canvas = document.getElementById(config.id);
-                const ctx = canvas.getContext('2d');
-                config.ctx = ctx;
-
-                loadConfigImage(config, (success) => {
-                    if (success) {
-                        console.log(`成功載入 Supabase 圖檔: ${config.src}`);
-                        const img = config.img;
-                        const MAX_WIDTH = 1200;
-                        let targetWidth = img.width;
-                        let targetHeight = img.height;
-
-                        if (targetWidth > MAX_WIDTH) {
-                            targetHeight = (MAX_WIDTH / targetWidth) * targetHeight;
-                            targetWidth = MAX_WIDTH;
-                        }
-
-                        canvas.width = targetWidth;
-                        canvas.height = targetHeight;
-                        // 畫上原始唯讀底圖
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                        loadedCount++;
-                        if (loadedCount === configs.length) {
-                            statusEl.innerText = "✅ 圖檔載入完成，可以開始手寫！";
-                            statusEl.style.color = "#28a745";
-                        }
-                    } else {
-                        console.error(`圖片載入失敗:`, config.src);
-                        canvas.width = 400;
-                        canvas.height = 150;
-                        ctx.fillStyle = "#f8d7da";
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-                        ctx.fillStyle = "#721c24";
-                        ctx.font = "bold 16px sans-serif";
-                        ctx.fillText("❌ 找不到原始圖檔", 20, 40);
-                        ctx.font = "12px sans-serif";
-                        ctx.fillText("請確認已上傳 checklist_1.jpg 與 checklist_2.jpg 到 templates 桶", 20, 75);
-                        statusEl.innerText = "⚠️ 圖片載入失敗，請檢查 Supabase Storage";
-                        statusEl.style.color = "red";
-                    }
-                });
-
-                // 註冊滑鼠與觸控事件
-                canvas.addEventListener('mousedown', (e) => startDrawing(e, canvas));
-                canvas.addEventListener('mousemove', (e) => draw(e, canvas, ctx));
-                canvas.addEventListener('mouseup', stopDrawing);
-                canvas.addEventListener('mouseout', stopDrawing);
-
-                canvas.addEventListener('touchstart', (e) => startDrawing(e, canvas), { passive: false });
-                canvas.addEventListener('touchmove', (e) => draw(e, canvas, ctx), { passive: false });
-                canvas.addEventListener('touchend', stopDrawing);
-            });
+            configs.forEach(config => initCanvas(config));
         };
 
         function getCoordinates(e, canvas) {
@@ -254,26 +252,24 @@
             isDrawing = false;
         }
 
-        // 清除畫布上的手寫筆跡，重新載入原始底圖（還原功能）
-        function clearCanvas(showMsg = true) {
+        function clearCanvas() {
             configs.forEach(config => {
-                if(config.loaded && config.ctx && config.img) {
+                if(config.ctx) {
                     const canvas = document.getElementById(config.id);
                     config.ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    // 重新畫上原始 Supabase 的空白底圖
-                    config.ctx.drawImage(config.img, 0, 0, canvas.width, canvas.height);
+                    if(config.img) {
+                        config.ctx.drawImage(config.img, 0, 0, canvas.width, canvas.height);
+                    } else {
+                        createFallbackCanvas(canvas, config.ctx, config.id);
+                    }
                 }
             });
-            if (showMsg) {
-                document.getElementById('status').innerText = "✅ 畫面已還原為空白表單";
-                setTimeout(() => document.getElementById('status').innerText = "✅ 圖檔載入完成，可以開始手寫！", 2000);
-            }
+            document.getElementById('status').innerText = "✅ 畫布已還原";
+            setTimeout(() => document.getElementById('status').innerText = "✅ 系統就緒，可以開始手寫！", 2000);
         }
 
-        // 下載包含手寫內容的截圖到裝置
         function downloadImage() {
             configs.forEach((config, index) => {
-                if(!config.loaded) return;
                 const canvas = document.getElementById(config.id);
                 const dataURL = canvas.toDataURL('image/jpeg', 0.9);
                 const link = document.createElement('a');
@@ -281,8 +277,7 @@
                 link.href = dataURL;
                 link.click();
             });
-            document.getElementById('status').innerText = "✅ 已將截圖下載至您的裝置！";
-            setTimeout(() => document.getElementById('status').innerText = "✅ 圖檔載入完成，可以開始手寫！", 3000);
+            document.getElementById('status').innerText = "✅ 已下載截圖！";
         }
 
         function canvasToBlobAsync(canvas) {
@@ -291,26 +286,19 @@
             });
         }
 
-        // 將截圖儲存至 Supabase，並在成功後清除畫布
         async function saveToSupabase() {
             const statusText = document.getElementById('status');
-            statusText.innerText = "⏳ 正在儲存截圖至 Supabase，請稍候...";
+            statusText.innerText = "⏳ 正在上傳至 Supabase，請稍候...";
             statusText.style.color = "#007bff";
             
             try {
                 for (let i = 0; i < configs.length; i++) {
                     const config = configs[i];
-                    if(!config.loaded) {
-                        throw new Error(`第 ${i+1} 張圖片尚未準備完成`);
-                    }
-
                     const canvas = document.getElementById(config.id);
                     const blob = await canvasToBlobAsync(canvas);
-                    // 確保上傳到 completed_forms 的檔案名稱也是全英文
                     const filename = `signed_${Date.now()}_page${i+1}.jpg`;
 
-                    // 上傳截圖到 completed_forms 桶
-                    const { data: storageData, error: storageError } = await supabase.storage
+                    const { error: storageError } = await supabase.storage
                         .from('completed_forms')
                         .upload(filename, blob, {
                             cacheControl: '3600',
@@ -319,14 +307,12 @@
 
                     if (storageError) throw storageError;
 
-                    // 取得已儲存檔案的公開網址
                     const { data: publicUrlData } = supabase.storage
                         .from('completed_forms')
                         .getPublicUrl(filename);
                     
                     const fileUrl = publicUrlData.publicUrl;
 
-                    // 寫入資料庫紀錄 form_records 表格
                     const { error: dbError } = await supabase
                         .from('form_records')
                         .insert([
@@ -336,13 +322,11 @@
                     if (dbError) throw dbError;
                 }
                 
-                statusText.innerText = "✅ 儲存成功！已將手寫截圖上傳，畫面即將還原。";
+                statusText.innerText = "✅ 儲存成功！資料已同步至 Supabase。";
                 statusText.style.color = "green";
-                
-                // 儲存成功後，自動還原為原始圖檔，供下一位使用者填寫
+
                 setTimeout(() => {
-                    clearCanvas(false);
-                    statusText.innerText = "✅ 畫面已還原，可以進行下一份手寫！";
+                    clearCanvas();
                 }, 2000);
 
             } catch (error) {
