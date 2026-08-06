@@ -115,7 +115,7 @@
             border-top: 1px dashed #ccc;
         }
 
-        /* 放大鏡手寫 Modal 樣式 - 手機滿版設定 */
+        /* 放大鏡手寫 Modal 樣式修正 (防止比例變形) */
         .modal {
             display: none; 
             position: fixed;
@@ -124,36 +124,30 @@
             z-index: 1000;
             justify-content: center;
             align-items: center;
-            padding: 0;
+            padding: 15px;
             box-sizing: border-box;
         }
         .modal-content {
             background: white;
-            padding: 15px 10px;
-            border-radius: 0;
+            padding: 20px 15px;
+            border-radius: 12px;
             width: 100%;
-            height: 100%;
-            max-width: none;
-            max-height: none;
+            max-width: 500px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between;
             box-sizing: border-box;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
         }
         .modal-canvas-wrapper {
             position: relative;
             width: 100%;
-            flex-grow: 1;
-            background: #f8f9fa;
-            margin: 10px 0;
-            border: 2px dashed #007bff;
+            background: #fff;
+            margin: 15px 0;
+            border: 2px solid #007bff;
             border-radius: 6px;
-            box-sizing: border-box;
             overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            box-sizing: border-box;
         }
         .modal-canvas-wrapper canvas {
             position: absolute;
@@ -192,7 +186,7 @@
 
     <div class="toolbar">
         <select id="drawMode">
-            <option value="zoom">🔍 點擊滿版局部放大寫字 (推薦)</option>
+            <option value="zoom">🔍 點擊局部放大寫字 (推薦)</option>
             <option value="draw">✍️ 直接畫筆手寫</option>
         </select>
         <select id="colorPicker" style="flex-grow: 0; width: 110px;">
@@ -214,12 +208,12 @@
         <canvas id="canvas2"></canvas>
     </div>
 
-    <!-- 放大手寫區 Modal (手機滿版) -->
+    <!-- 放大手寫區 Modal -->
     <div id="zoomModal" class="modal">
         <div class="modal-content">
             <div style="text-align: center; width: 100%;">
-                <h3 style="margin-top:0; color:#333; margin-bottom: 2px;">🔍 手機滿版局部放大手寫區</h3>
-                <p style="font-size:12px; color:#666; margin-bottom: 0;">請在下方區域書寫，完成後點擊「確認寫入」。</p>
+                <h3 style="margin-top:0; color:#333; margin-bottom: 5px;">🔍 局部放大手寫區</h3>
+                <p style="font-size:13px; color:#666; margin-bottom: 0;">請在下方區域書寫，完成後點擊「確認寫入」。</p>
             </div>
             
             <div class="modal-canvas-wrapper" id="modalCanvasWrapper">
@@ -228,7 +222,7 @@
             </div>
             
             <div class="modal-buttons">
-                <button class="btn-clear" onclick="clearModalCanvas()">🧹 清除重寫</button>
+                <button class="btn-clear" onclick="clearModalCanvas()">🧹 清除</button>
                 <button class="btn-cancel" onclick="closeZoomModal()">❌ 取消</button>
                 <button class="btn-save" onclick="confirmZoomModal()">✅ 確認寫入</button>
             </div>
@@ -289,7 +283,7 @@
 
                         loadedCount++;
                         if (loadedCount === configs.length) {
-                            statusEl.innerText = "✅ 已成功讀取底圖，點選圖片區域即可滿版放大手寫！";
+                            statusEl.innerText = "✅ 已成功讀取底圖，點選圖片區域即可放大手寫！";
                             statusEl.style.color = "#28a745";
                         }
                     };
@@ -351,7 +345,7 @@
             ctx.moveTo(lastX, lastY);
             ctx.lineTo(pos.x, pos.y);
             ctx.strokeStyle = color;
-            ctx.lineWidth = isModal ? 6 : 3; 
+            ctx.lineWidth = isModal ? 5 : 3; 
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.stroke();
@@ -389,9 +383,9 @@
         function openZoomModal(e, canvas) {
             const pos = getCoordinates(e, canvas);
             
-            // 讓擷取範圍更寬廣，配合手機滿版畫面
-            let cw = Math.min(350, canvas.width);
-            let ch = Math.min(150, canvas.height);
+            // 固定合適的書寫檢視區大小與比例 (400x200，比例 2:1，確保好寫且絕不變形)
+            let cw = 400;
+            let ch = 200;
 
             let sx = pos.x - cw / 2;
             let sy = pos.y - ch / 2;
@@ -411,9 +405,12 @@
             const mw = cw * SCALE;
             const mh = ch * SCALE;
 
+            // 強制設定容器與內部畫布的長寬比完全一致 (2:1)
             wrapper.style.aspectRatio = `${cw} / ${ch}`;
-            modalBg.width = mw; modalBg.height = mh;
-            modalDraw.width = mw; modalDraw.height = mh;
+            modalBg.width = mw; 
+            modalBg.height = mh;
+            modalDraw.width = mw; 
+            modalDraw.height = mh;
 
             const bgCtx = modalBg.getContext('2d');
             bgCtx.drawImage(canvas, sx, sy, cw, ch, 0, 0, mw, mh);
