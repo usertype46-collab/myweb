@@ -10,69 +10,78 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f0f2f5;
             margin: 0;
-            padding: 20px;
+            padding: 15px;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-        h1 { color: #333; text-align: center; }
+        h1 { color: #333; text-align: center; font-size: 24px; margin-bottom: 20px;}
+        
         .toolbar {
             position: sticky;
             top: 0;
             background: white;
-            padding: 15px;
+            padding: 12px;
             border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
             margin-bottom: 20px;
             display: flex;
-            gap: 15px;
+            gap: 10px;
             z-index: 100;
             flex-wrap: wrap;
             justify-content: center;
+            width: 100%;
+            max-width: 600px;
         }
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
+        
+        select, button {
+            padding: 10px 15px;
+            font-size: 15px;
             cursor: pointer;
             border: none;
             border-radius: 5px;
-            background-color: #007bff;
-            color: white;
-            transition: 0.3s;
+            font-weight: bold;
         }
+        select { border: 1px solid #ccc; background: white; }
+        button { background-color: #007bff; color: white; transition: 0.3s; }
         button:hover { background-color: #0056b3; }
         .btn-clear { background-color: #dc3545; }
         .btn-clear:hover { background-color: #c82333; }
-        .btn-save { background-color: #28a745; }
+        .btn-save { background-color: #28a745; width: 100%; } /* 手機上讓儲存按鈕滿版 */
         .btn-save:hover { background-color: #218838; }
         
         .canvas-container {
             margin-bottom: 30px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
             background: white;
-            overflow: auto; /* 允許在大圖片上滾動 */
-            max-width: 100%;
+            width: 100%; /* 適應手機螢幕寬度 */
+            max-width: 1000px;
+            border-radius: 4px;
+            overflow: hidden; /* 確保畫布不會超出容器 */
         }
+        
         canvas {
             display: block;
-            touch-action: none; /* 防止觸控畫畫時螢幕滾動 */
+            width: 100%; /* 視覺上 100% 貼合手機螢幕 */
+            height: auto; /* 高度等比例縮放 */
+            touch-action: none; /* 重要：防止觸控畫畫時螢幕跟著滑動 */
             cursor: crosshair;
         }
-        #status { font-weight: bold; color: #28a745; margin-top: 10px; }
+        #status { font-weight: bold; color: #28a745; margin-bottom: 15px; text-align: center; width: 100%; }
     </style>
 </head>
 <body>
 
-    <h1>📝 門市人員實習計畫檢核表 - 線上簽核</h1>
+    <h1>📝 實習檢核表 - 線上簽核</h1>
 
     <div class="toolbar">
-        <select id="colorPicker" style="padding: 5px; font-size:16px;">
+        <select id="colorPicker">
             <option value="blue">藍筆 (Blue)</option>
             <option value="black">黑筆 (Black)</option>
             <option value="red">紅筆 (Red)</option>
         </select>
-        <button class="btn-clear" onclick="clearCanvas()">🧹 清除重寫</button>
-        <button onclick="downloadImage()">⬇️ 下載圖片</button>
+        <button class="btn-clear" onclick="clearCanvas()">🧹 清除</button>
+        <button onclick="downloadImage()">⬇️ 下載</button>
         <button class="btn-save" onclick="saveToSupabase()">☁️ 儲存並上傳至 Supabase</button>
     </div>
     
@@ -87,15 +96,15 @@
     </div>
 
     <script>
-        // 初始化 Supabase (使用您提供的 URL 和 Key)
+        // 初始化 Supabase
         const supabaseUrl = 'https://hyvcfxwoewvbpfzvfdnn.supabase.co';
         const supabaseKey = 'sb_publishable_TR5C2Zc7eOj9uUosUUsX4g_KbBOwey2';
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        // 圖片與畫布設定
+        // 圖片與畫布設定 (請注意大小寫必須與 GitHub 上的檔案完全一致)
         const configs = [
-            { id: 'canvas1', src: '1604.jpg', ctx: null, img: null },
-            { id: 'canvas2', src: '1603.jpg', ctx: null, img: null }
+            { id: 'canvas1', src: './1604.jpg', ctx: null, img: null },
+            { id: 'canvas2', src: './1603.jpg', ctx: null, img: null }
         ];
 
         let isDrawing = false;
@@ -109,15 +118,42 @@
                 config.ctx = ctx;
                 
                 const img = new Image();
-                img.src = config.src;
+                // 處理跨域問題(保險起見)
+                img.crossOrigin = "Anonymous"; 
+                
                 img.onload = () => {
-                    // 設定畫布大小符合圖片原始大小
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    // 如果原圖太大，可在此依比例縮小 (這裡保留原畫質)
+                    // 【防崩潰機制】限制畫布最大寬度為 1200px，避免手機記憶體爆滿導致白屏
+                    const MAX_WIDTH = 1200;
+                    let targetWidth = img.width;
+                    let targetHeight = img.height;
+
+                    if (targetWidth > MAX_WIDTH) {
+                        targetHeight = (MAX_WIDTH / targetWidth) * targetHeight;
+                        targetWidth = MAX_WIDTH;
+                    }
+
+                    canvas.width = targetWidth;
+                    canvas.height = targetHeight;
+                    
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     config.img = img; // 保存圖片物件供清除時重繪
                 };
+
+                // 【錯誤提示機制】如果圖片載入失敗，在畫布上顯示錯誤訊息
+                img.onerror = () => {
+                    canvas.width = 400;
+                    canvas.height = 200;
+                    ctx.fillStyle = "#f8d7da";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = "#721c24";
+                    ctx.font = "bold 18px sans-serif";
+                    ctx.fillText("❌ 圖片載入失敗", 20, 40);
+                    ctx.font = "14px sans-serif";
+                    ctx.fillText("檔案名稱：" + config.src, 20, 70);
+                    ctx.fillText("請檢查 GitHub 上檔案的大小寫是否為小寫 .jpg", 20, 100);
+                };
+
+                img.src = config.src;
 
                 // 註冊滑鼠與觸控事件
                 canvas.addEventListener('mousedown', (e) => startDrawing(e, canvas));
@@ -131,16 +167,17 @@
             });
         };
 
-        // 取得正確游標/觸控座標
+        // 取得正確游標/觸控座標 (計算縮放比例)
         function getCoordinates(e, canvas) {
             const rect = canvas.getBoundingClientRect();
-            // 處理畫布因 CSS 縮放的問題
+            // 計算 CSS 縮放與實際畫布解析度的比例
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
             
             let clientX = e.clientX;
             let clientY = e.clientY;
 
+            // 觸控事件處理
             if (e.touches && e.touches.length > 0) {
                 clientX = e.touches[0].clientX;
                 clientY = e.touches[0].clientY;
@@ -153,7 +190,7 @@
         }
 
         function startDrawing(e, canvas) {
-            e.preventDefault();
+            if (e.cancelable) e.preventDefault(); // 防止螢幕捲動
             isDrawing = true;
             const pos = getCoordinates(e, canvas);
             lastX = pos.x;
@@ -162,7 +199,7 @@
 
         function draw(e, canvas, ctx) {
             if (!isDrawing) return;
-            e.preventDefault();
+            if (e.cancelable) e.preventDefault();
             
             const pos = getCoordinates(e, canvas);
             const color = document.getElementById('colorPicker').value;
@@ -171,7 +208,7 @@
             ctx.moveTo(lastX, lastY);
             ctx.lineTo(pos.x, pos.y);
             ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 4; // 稍微加粗一點讓手機上看起來更清楚
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.stroke();
@@ -193,38 +230,49 @@
                     config.ctx.drawImage(config.img, 0, 0, canvas.width, canvas.height);
                 }
             });
-            document.getElementById('status').innerText = "畫布已清除";
+            document.getElementById('status').innerText = "✅ 畫布已清除";
+            setTimeout(() => document.getElementById('status').innerText = "", 2000);
         }
 
         // 下載圖片到本機
         function downloadImage() {
             configs.forEach((config, index) => {
                 const canvas = document.getElementById(config.id);
+                // 避免空白畫布被下載
+                if(!config.img) return; 
+                
                 const dataURL = canvas.toDataURL('image/jpeg', 0.9);
                 const link = document.createElement('a');
                 link.download = `signed_page_${index + 1}.jpg`;
                 link.href = dataURL;
                 link.click();
             });
-            document.getElementById('status').innerText = "已開始下載！";
+            document.getElementById('status').innerText = "✅ 已開始下載！";
+            setTimeout(() => document.getElementById('status').innerText = "", 3000);
         }
 
         // 將畫布轉 Blob
         function canvasToBlobAsync(canvas) {
             return new Promise((resolve) => {
-                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.9);
+                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85);
             });
         }
 
-        // 儲存並同步至 Supabase (Storage + Database)
+        // 儲存並同步至 Supabase
         async function saveToSupabase() {
             const statusText = document.getElementById('status');
-            statusText.innerText = "上傳中，請稍候...";
+            statusText.innerText = "⏳ 上傳中，請稍候...";
+            statusText.style.color = "#007bff";
             
             try {
                 for (let i = 0; i < configs.length; i++) {
                     const config = configs[i];
                     const canvas = document.getElementById(config.id);
+                    
+                    if(!config.img) {
+                        throw new Error(`第 ${i+1} 張圖片未載入，無法上傳`);
+                    }
+
                     const blob = await canvasToBlobAsync(canvas);
                     const filename = `signed_${Date.now()}_page${i+1}.jpg`;
 
@@ -255,7 +303,7 @@
                     if (dbError) throw dbError;
                 }
                 
-                statusText.innerText = "✅ 儲存成功！已同步至 Supabase。";
+                statusText.innerText = "✅ 儲存成功！已同步至雲端。";
                 statusText.style.color = "green";
             } catch (error) {
                 console.error("Upload error:", error);
