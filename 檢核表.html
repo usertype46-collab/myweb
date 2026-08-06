@@ -115,7 +115,7 @@
             border-top: 1px dashed #ccc;
         }
 
-        /* 放大鏡手寫 Modal 樣式：改為近乎全螢幕滿版 */
+        /* 放大鏡手寫 Modal 樣式：加大高度與空間 */
         .modal {
             display: none; 
             position: fixed;
@@ -124,15 +124,15 @@
             z-index: 1000;
             justify-content: center;
             align-items: center;
-            padding: 5px;
+            padding: 8px;
             box-sizing: border-box;
         }
         .modal-content {
             background: white;
-            padding: 10px;
+            padding: 12px;
             border-radius: 8px;
-            width: 98%;
-            max-width: 95vw;
+            width: 100%;
+            max-width: 550px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -143,7 +143,7 @@
             position: relative;
             width: 100%;
             background: #fff;
-            margin: 10px 0;
+            margin: 12px 0;
             border: 2px solid #007bff;
             border-radius: 4px;
             overflow: hidden;
@@ -208,11 +208,11 @@
         <canvas id="canvas2"></canvas>
     </div>
 
-    <!-- 放大手寫區 Modal (滿版優化) -->
+    <!-- 放大手寫區 Modal -->
     <div id="zoomModal" class="modal">
         <div class="modal-content">
             <div style="text-align: center; width: 100%;">
-                <h3 style="margin:0 0 3px 0; color:#333; font-size:16px;">🔍 局部放大手寫區 (滿版模式)</h3>
+                <h3 style="margin:0 0 3px 0; color:#333; font-size:16px;">🔍 局部放大手寫區 (舒適大空間)</h3>
                 <p style="font-size:12px; color:#666; margin:0;">請在下方區域書寫，完成後點擊「確認寫入」。</p>
             </div>
             
@@ -345,8 +345,8 @@
             ctx.moveTo(lastX, lastY);
             ctx.lineTo(pos.x, pos.y);
             ctx.strokeStyle = color;
-            // 畫筆調細：放大視窗改為 2.5，一般畫布改為 1.2
-            ctx.lineWidth = isModal ? 2.5 : 1.2; 
+            // 畫筆維持細緻：放大視窗 2.0，一般畫布 1.2
+            ctx.lineWidth = isModal ? 2.0 : 1.2; 
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.stroke();
@@ -384,9 +384,9 @@
         function openZoomModal(e, canvas) {
             const pos = getCoordinates(e, canvas);
             
-            // 放大區域大小隨手機畫面寬度擴展，佔滿大部分畫面
-            let cw = Math.min(window.innerWidth - 30, 700);
-            let ch = cw / 2.2; // 保持寬扁舒適比例
+            // 調整長寬比例為舒適的 1.6 : 1（具備足夠的高度，不再扁平）
+            let cw = 450;
+            let ch = 280;
 
             let sx = pos.x - cw / 2;
             let sy = pos.y - ch / 2;
