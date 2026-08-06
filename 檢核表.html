@@ -83,7 +83,6 @@
         .btn-save:hover { background-color: #218838; }
         .btn-download { background-color: #17a2b8; }
         
-        /* 特別強調模式切換按鈕 */
         #drawMode { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; font-weight: bold; }
 
         .canvas-container {
@@ -116,7 +115,7 @@
             border-top: 1px dashed #ccc;
         }
 
-        /* 放大鏡手寫 Modal 樣式 */
+        /* 放大鏡手寫 Modal 樣式 (微調寬度讓排版更適合大範圍書寫) */
         .modal {
             display: none; 
             position: fixed;
@@ -125,15 +124,15 @@
             z-index: 1000;
             justify-content: center;
             align-items: center;
-            padding: 15px;
+            padding: 10px;
             box-sizing: border-box;
         }
         .modal-content {
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 12px;
             width: 100%;
-            max-width: 800px;
+            max-width: 900px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -143,7 +142,7 @@
             position: relative;
             width: 100%;
             background: #f8f9fa;
-            margin: 15px 0;
+            margin: 10px 0;
             border: 2px dashed #007bff;
             border-radius: 6px;
             box-sizing: border-box;
@@ -156,7 +155,7 @@
             touch-action: none;
         }
         .modal-buttons {
-            display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; margin-top: 10px;
+            display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; margin-top: 5px;
         }
         .btn-cancel { background-color: #6c757d; }
         .btn-cancel:hover { background-color: #5a6268; }
@@ -166,7 +165,6 @@
 
     <h1>📝 實習檢核表 - 線上簽核</h1>
 
-    <!-- 資料填寫區 -->
     <div class="card">
         <div class="info-grid">
             <div class="info-group"><label>📅 實習日期</label><input type="date" id="internshipDate"></div>
@@ -185,10 +183,9 @@
         </div>
     </div>
 
-    <!-- 工具列 -->
     <div class="toolbar">
         <select id="drawMode">
-            <option value="zoom">🔍 點擊放大寫字 (推薦)</option>
+            <option value="zoom">🔍 點擊超大局部放大寫字 (推薦)</option>
             <option value="draw">✍️ 直接畫筆手寫</option>
         </select>
         <select id="colorPicker" style="flex-grow: 0; width: 110px;">
@@ -213,13 +210,11 @@
     <!-- 放大手寫區 Modal -->
     <div id="zoomModal" class="modal">
         <div class="modal-content">
-            <h3 style="margin-top:0; color:#333; margin-bottom: 5px;">🔍 局部放大手寫區</h3>
-            <p style="font-size:13px; color:#666; margin-bottom: 0;">請在下方框內簽名或打勾，完成後點擊「確認寫入」。</p>
+            <h3 style="margin-top:0; color:#333; margin-bottom: 2px;">🔍 超大局部放大手寫區</h3>
+            <p style="font-size:12px; color:#666; margin-bottom: 0;">已大幅放大區域，請輕鬆書寫，完成後點擊「確認寫入」。</p>
             
             <div class="modal-canvas-wrapper" id="modalCanvasWrapper">
-                <!-- 底層顯示放大的背景圖 -->
                 <canvas id="modalBgCanvas"></canvas>
-                <!-- 頂層用來擷取透明背景的筆跡 -->
                 <canvas id="modalDrawCanvas"></canvas>
             </div>
             
@@ -241,16 +236,15 @@
 
         let isDrawing = false;
         let lastX = 0, lastY = 0;
-        let zoomContext = null; // 用來儲存放大鏡的座標對應資料
+        let zoomContext = null;
 
         window.onload = () => {
             document.getElementById('internshipDate').valueAsDate = new Date();
             loadTemplatesFromDrive();
             loadRecordsFromDrive();
-            initModalEvents(); // 初始化放大鏡 Modal 的畫筆事件
+            initModalEvents();
         };
 
-        // ================= 1. 載入圖檔與事件綁定 =================
         async function loadTemplatesFromDrive() {
             const statusEl = document.getElementById('status');
             let loadedCount = 0;
@@ -286,7 +280,7 @@
 
                         loadedCount++;
                         if (loadedCount === configs.length) {
-                            statusEl.innerText = "✅ 已成功讀取底圖，點選圖片區域即可放大手寫！";
+                            statusEl.innerText = "✅ 已成功讀取底圖，點選圖片區域即可超大放大手寫！";
                             statusEl.style.color = "#28a745";
                         }
                     };
@@ -298,7 +292,6 @@
                     statusEl.style.color = "red";
                 }
 
-                // 註冊畫筆與點擊事件 (改為 handlePointerDown 判斷模式)
                 canvas.addEventListener('mousedown', (e) => handlePointerDown(e, canvas));
                 canvas.addEventListener('mousemove', (e) => draw(e, canvas, ctx));
                 canvas.addEventListener('mouseup', stopDrawing);
@@ -310,11 +303,10 @@
             }
         }
 
-        // ================= 2. 模式判斷與共用繪圖邏輯 =================
         function handlePointerDown(e, canvas) {
             const mode = document.getElementById('drawMode').value;
             if (mode === 'zoom') {
-                if (e.cancelable) e.preventDefault(); // 阻止滾動
+                if (e.cancelable) e.preventDefault();
                 openZoomModal(e, canvas);
             } else {
                 startDrawing(e, canvas);
@@ -344,14 +336,14 @@
             if (e.cancelable) e.preventDefault();
             const pos = getCoordinates(e, canvas);
             const color = document.getElementById('colorPicker').value;
-            const isModal = (canvas.id === 'modalDrawCanvas'); // 判斷是否在放大鏡內
+            const isModal = (canvas.id === 'modalDrawCanvas');
 
             ctx.beginPath();
             ctx.moveTo(lastX, lastY);
             ctx.lineTo(pos.x, pos.y);
             ctx.strokeStyle = color;
-            // 放大鏡模式下畫筆加粗，以便縮小貼回原圖時比例正常
-            ctx.lineWidth = isModal ? 8 : 3; 
+            // 放大鏡模式下畫筆粗細適中，配合 3 倍放大非常清晰
+            ctx.lineWidth = isModal ? 6 : 3; 
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.stroke();
@@ -372,7 +364,6 @@
             document.getElementById('status').innerText = "✅ 畫布已還原";
         }
 
-        // ================= 3. 放大鏡手寫 (Zoom Modal) 核心邏輯 =================
         function initModalEvents() {
             const mCanvas = document.getElementById('modalDrawCanvas');
             const mCtx = mCanvas.getContext('2d');
@@ -390,45 +381,38 @@
         function openZoomModal(e, canvas) {
             const pos = getCoordinates(e, canvas);
             
-            // 擷取框的原始大小 (寬500, 高250)
-            let cw = Math.min(500, canvas.width);
-            let ch = Math.min(250, canvas.height);
+            // **調整點 1：將擷取範圍縮小至 250 x 120 (原本是 500x250)，讓視野更局部、更放大！**
+            let cw = Math.min(250, canvas.width);
+            let ch = Math.min(120, canvas.height);
 
-            // 計算擷取中心點
             let sx = pos.x - cw / 2;
             let sy = pos.y - ch / 2;
 
-            // 邊界防呆處理 (不可超出畫布)
             if (sx < 0) sx = 0;
             if (sy < 0) sy = 0;
             if (sx + cw > canvas.width) sx = canvas.width - cw;
             if (sy + ch > canvas.height) sy = canvas.height - ch;
 
-            // 記憶目前的位置，供稍後貼回使用
             zoomContext = { targetCanvas: canvas, sx, sy, cw, ch };
 
             const modalBg = document.getElementById('modalBgCanvas');
             const modalDraw = document.getElementById('modalDrawCanvas');
             const wrapper = document.getElementById('modalCanvasWrapper');
 
-            // 放大倍率：放大 2 倍讓手機更好寫
-            const SCALE = 2;
+            // **調整點 2：放大倍率提升至 3 倍 (SCALE = 3)**
+            const SCALE = 3;
             const mw = cw * SCALE;
             const mh = ch * SCALE;
 
-            // 設定 CSS 比例與 Canvas 內部解析度
             wrapper.style.aspectRatio = `${cw} / ${ch}`;
             modalBg.width = mw; modalBg.height = mh;
             modalDraw.width = mw; modalDraw.height = mh;
 
-            // 將主畫布的背景區域，放大繪製到 Modal 的底層背景 Canvas 上
             const bgCtx = modalBg.getContext('2d');
             bgCtx.drawImage(canvas, sx, sy, cw, ch, 0, 0, mw, mh);
 
-            // 清空頂層的手寫 Canvas
             clearModalCanvas();
 
-            // 顯示 Modal 並鎖定背景滾動
             document.getElementById('zoomModal').style.display = 'flex';
             document.body.style.overflow = 'hidden';
         }
@@ -441,7 +425,7 @@
 
         function closeZoomModal() {
             document.getElementById('zoomModal').style.display = 'none';
-            document.body.style.overflow = 'auto'; // 恢復背景滾動
+            document.body.style.overflow = 'auto';
             zoomContext = null;
         }
 
@@ -450,7 +434,6 @@
             const mainCtx = zoomContext.targetCanvas.getContext('2d');
             const modalDraw = document.getElementById('modalDrawCanvas');
 
-            // **核心魔法**：將 Modal 手寫層(只有筆跡透明背景)，完美縮小貼回原本的主畫布區域
             mainCtx.drawImage(
                 modalDraw, 
                 0, 0, modalDraw.width, modalDraw.height, 
@@ -460,7 +443,6 @@
             closeZoomModal();
         }
 
-        // ================= 4. Google Drive 其他串接功能 (維持原樣) =================
         function createFallbackCanvas(canvas, ctx, filename) {
             canvas.width = 800; canvas.height = 600;
             ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
