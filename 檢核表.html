@@ -2,72 +2,33 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>門市人員實習計劃檢核表 (線上版)</title>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>門市人員實習計畫檢核表 - 線上簽署</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
     <style>
         body {
-            font-family: 'Microsoft JhengHei', Arial, sans-serif;
-            background-color: #f4f4f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
             padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-        /* 表單主體樣式 (要被截圖的區域) */
-        #capture-area {
-            background-color: white;
-            padding: 30px;
-            width: 100%;
-            max-width: 800px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            border: 1px solid #ccc;
-        }
-        h2 {
-            text-align: center;
+        h1 { color: #333; text-align: center; }
+        .toolbar {
+            position: sticky;
+            top: 0;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             margin-bottom: 20px;
-            letter-spacing: 2px;
-        }
-        .header-table, .content-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        .header-table th, .header-table td, 
-        .content-table th, .content-table td {
-            border: 1px solid #000;
-            padding: 10px;
-            text-align: center;
-        }
-        .header-table th { background-color: #f0f0f0; }
-        
-        input[type="text"] {
-            width: 90%;
-            padding: 5px;
-            border: 1px solid #ccc;
-            outline: none;
-        }
-        /* 手寫簽名板樣式 */
-        .signature-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: 10px;
-        }
-        canvas {
-            border: 1px dashed #666;
-            background-color: #fafafa;
-            cursor: crosshair;
-            touch-action: none; /* 防止手機滑動畫布時捲動螢幕 */
-        }
-        /* 按鈕樣式 */
-        .actions {
-            margin-top: 20px;
             display: flex;
             gap: 15px;
+            z-index: 100;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         button {
             padding: 10px 20px;
@@ -75,217 +36,232 @@
             cursor: pointer;
             border: none;
             border-radius: 5px;
+            background-color: #007bff;
             color: white;
+            transition: 0.3s;
         }
-        .btn-clear { background-color: #e74c3c; }
-        .btn-submit { background-color: #2ecc71; }
-        .btn-submit:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        button:hover { background-color: #0056b3; }
+        .btn-clear { background-color: #dc3545; }
+        .btn-clear:hover { background-color: #c82333; }
+        .btn-save { background-color: #28a745; }
+        .btn-save:hover { background-color: #218838; }
         
-        #loading-msg {
-            color: #2980b9;
-            margin-top: 15px;
-            font-weight: bold;
-            display: none;
+        .canvas-container {
+            margin-bottom: 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            background: white;
+            overflow: auto; /* 允許在大圖片上滾動 */
+            max-width: 100%;
         }
+        canvas {
+            display: block;
+            touch-action: none; /* 防止觸控畫畫時螢幕滾動 */
+            cursor: crosshair;
+        }
+        #status { font-weight: bold; color: #28a745; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <div id="capture-area">
-        <h2>門市人員實習計劃檢核表</h2>
-        
-        <table class="header-table">
-            <tr>
-                <th>姓名</th>
-                <td><input type="text" id="trainee_name" placeholder="請輸入姓名"></td>
-                <th>本尊所在門市</th>
-                <td><input type="text" id="store_name" placeholder="請輸入門市"></td>
-                <th>班別</th>
-                <td><input type="text" id="shift" placeholder="早/晚班"></td>
-            </tr>
-        </table>
+    <h1>📝 門市人員實習計畫檢核表 - 線上簽核</h1>
 
-        <table class="content-table">
-            <thead>
-                <tr>
-                    <th>項目</th>
-                    <th>實習內容</th>
-                    <th>確認完成 (打勾)</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>安全衛生</td>
-                    <td>安全衛生教育訓練與職業安全知悉</td>
-                    <td><input type="checkbox" style="transform: scale(1.5);"></td>
-                </tr>
-                <tr>
-                    <td>基本作業</td>
-                    <td>登入公告欄、打卡操作及到店回報</td>
-                    <td><input type="checkbox" style="transform: scale(1.5);"></td>
-                </tr>
-                <tr>
-                    <td>收銀寄件</td>
-                    <td>買家自助寄件及買家退貨 (RR) 流程</td>
-                    <td><input type="checkbox" style="transform: scale(1.5);"></td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="signature-container">
-            <p style="font-weight: bold;">種子人員簽名區</p>
-            <canvas id="signature-pad" width="300" height="150"></canvas>
-            <button class="btn-clear" onclick="clearCanvas()" style="margin-top:10px; padding: 5px 10px; font-size: 12px;">清除重簽</button>
-        </div>
-    </div>
-
-    <div class="actions">
-        <button class="btn-submit" id="submit-btn" onclick="submitForm()">送出並儲存截圖</button>
+    <div class="toolbar">
+        <select id="colorPicker" style="padding: 5px; font-size:16px;">
+            <option value="blue">藍筆 (Blue)</option>
+            <option value="black">黑筆 (Black)</option>
+            <option value="red">紅筆 (Red)</option>
+        </select>
+        <button class="btn-clear" onclick="clearCanvas()">🧹 清除重寫</button>
+        <button onclick="downloadImage()">⬇️ 下載圖片</button>
+        <button class="btn-save" onclick="saveToSupabase()">☁️ 儲存並上傳至 Supabase</button>
     </div>
     
-    <div id="loading-msg">處理中，請稍候... (正在生成截圖並上傳至 Supabase)</div>
+    <div id="status"></div>
+
+    <div class="canvas-container">
+        <canvas id="canvas1"></canvas>
+    </div>
+    
+    <div class="canvas-container">
+        <canvas id="canvas2"></canvas>
+    </div>
 
     <script>
-        // 1. 初始化 Supabase
-        const SUPABASE_URL = 'https://hyvcfxwoewvbpfzvfdnn.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_TR5C2Zc7eOj9uUosUUsX4g_KbBOwey2';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // 初始化 Supabase (使用您提供的 URL 和 Key)
+        const supabaseUrl = 'https://hyvcfxwoewvbpfzvfdnn.supabase.co';
+        const supabaseKey = 'sb_publishable_TR5C2Zc7eOj9uUosUUsX4g_KbBOwey2';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        // 2. 手寫板 (Canvas) 邏輯
-        const canvas = document.getElementById('signature-pad');
-        const ctx = canvas.getContext('2d');
+        // 圖片與畫布設定
+        const configs = [
+            { id: 'canvas1', src: '1604.jpg', ctx: null, img: null },
+            { id: 'canvas2', src: '1603.jpg', ctx: null, img: null }
+        ];
+
         let isDrawing = false;
+        let lastX = 0, lastY = 0;
 
-        // 設定畫筆樣式
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 3;
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
+        // 初始化畫布與載入背景圖
+        window.onload = () => {
+            configs.forEach(config => {
+                const canvas = document.getElementById(config.id);
+                const ctx = canvas.getContext('2d');
+                config.ctx = ctx;
+                
+                const img = new Image();
+                img.src = config.src;
+                img.onload = () => {
+                    // 設定畫布大小符合圖片原始大小
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    // 如果原圖太大，可在此依比例縮小 (這裡保留原畫質)
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    config.img = img; // 保存圖片物件供清除時重繪
+                };
 
-        const getCoordinates = (e) => {
+                // 註冊滑鼠與觸控事件
+                canvas.addEventListener('mousedown', (e) => startDrawing(e, canvas));
+                canvas.addEventListener('mousemove', (e) => draw(e, canvas, ctx));
+                canvas.addEventListener('mouseup', stopDrawing);
+                canvas.addEventListener('mouseout', stopDrawing);
+
+                canvas.addEventListener('touchstart', (e) => startDrawing(e, canvas), { passive: false });
+                canvas.addEventListener('touchmove', (e) => draw(e, canvas, ctx), { passive: false });
+                canvas.addEventListener('touchend', stopDrawing);
+            });
+        };
+
+        // 取得正確游標/觸控座標
+        function getCoordinates(e, canvas) {
             const rect = canvas.getBoundingClientRect();
+            // 處理畫布因 CSS 縮放的問題
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            let clientX = e.clientX;
+            let clientY = e.clientY;
+
             if (e.touches && e.touches.length > 0) {
-                return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
             }
-            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-        };
 
-        const startDrawing = (e) => {
-            isDrawing = true;
-            const { x, y } = getCoordinates(e);
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-        };
-
-        const draw = (e) => {
-            if (!isDrawing) return;
-            e.preventDefault(); // 防止手機滾動
-            const { x, y } = getCoordinates(e);
-            ctx.lineTo(x, y);
-            ctx.stroke();
-        };
-
-        const stopDrawing = () => {
-            isDrawing = false;
-            ctx.closePath();
-        };
-
-        // 滑鼠事件
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseout', stopDrawing);
-        // 觸控事件(手機/平板)
-        canvas.addEventListener('touchstart', startDrawing);
-        canvas.addEventListener('touchmove', draw, { passive: false });
-        canvas.addEventListener('touchend', stopDrawing);
-
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
         }
 
-        // 3. 截圖、上傳與下載邏輯
-        async function submitForm() {
-            const submitBtn = document.getElementById('submit-btn');
-            const loadingMsg = document.getElementById('loading-msg');
-            submitBtn.disabled = true;
-            loadingMsg.style.display = 'block';
+        function startDrawing(e, canvas) {
+            e.preventDefault();
+            isDrawing = true;
+            const pos = getCoordinates(e, canvas);
+            lastX = pos.x;
+            lastY = pos.y;
+        }
 
+        function draw(e, canvas, ctx) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            
+            const pos = getCoordinates(e, canvas);
+            const color = document.getElementById('colorPicker').value;
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+
+            lastX = pos.x;
+            lastY = pos.y;
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        // 清除畫布並重新鋪上背景
+        function clearCanvas() {
+            configs.forEach(config => {
+                if(config.ctx && config.img) {
+                    const canvas = document.getElementById(config.id);
+                    config.ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    config.ctx.drawImage(config.img, 0, 0, canvas.width, canvas.height);
+                }
+            });
+            document.getElementById('status').innerText = "畫布已清除";
+        }
+
+        // 下載圖片到本機
+        function downloadImage() {
+            configs.forEach((config, index) => {
+                const canvas = document.getElementById(config.id);
+                const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+                const link = document.createElement('a');
+                link.download = `signed_page_${index + 1}.jpg`;
+                link.href = dataURL;
+                link.click();
+            });
+            document.getElementById('status').innerText = "已開始下載！";
+        }
+
+        // 將畫布轉 Blob
+        function canvasToBlobAsync(canvas) {
+            return new Promise((resolve) => {
+                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.9);
+            });
+        }
+
+        // 儲存並同步至 Supabase (Storage + Database)
+        async function saveToSupabase() {
+            const statusText = document.getElementById('status');
+            statusText.innerText = "上傳中，請稍候...";
+            
             try {
-                // 隱藏"清除按鈕"，以免被截圖進去
-                document.querySelector('.btn-clear').style.display = 'none';
-                
-                // 步驟 A: 使用 html2canvas 進行截圖
-                const captureArea = document.getElementById('capture-area');
-                const canvasResult = await html2canvas(captureArea, { scale: 2 });
-                
-                // 恢復"清除按鈕"
-                document.querySelector('.btn-clear').style.display = 'inline-block';
+                for (let i = 0; i < configs.length; i++) {
+                    const config = configs[i];
+                    const canvas = document.getElementById(config.id);
+                    const blob = await canvasToBlobAsync(canvas);
+                    const filename = `signed_${Date.now()}_page${i+1}.jpg`;
 
-                // 將 Canvas 轉為 Blob (圖片檔案格式)
-                canvasResult.toBlob(async function(blob) {
-                    
-                    // 產生獨立的檔名
-                    const fileName = `form_${Date.now()}.png`;
-
-                    // 步驟 B: 上傳截圖到 Supabase Storage
-                    const { data: uploadData, error: uploadError } = await supabase
-                        .storage
+                    // 1. 上傳至 Supabase Storage
+                    const { data: storageData, error: storageError } = await supabase.storage
                         .from('completed_forms')
-                        .upload(fileName, blob, { contentType: 'image/png' });
+                        .upload(filename, blob, {
+                            cacheControl: '3600',
+                            upsert: false
+                        });
 
-                    if (uploadError) throw uploadError;
+                    if (storageError) throw storageError;
 
-                    // 取得圖片公開網址
-                    const { data: publicUrlData } = supabase
-                        .storage
+                    // 2. 獲取公共網址
+                    const { data: publicUrlData } = supabase.storage
                         .from('completed_forms')
-                        .getPublicUrl(fileName);
+                        .getPublicUrl(filename);
                     
-                    const imageUrl = publicUrlData.publicUrl;
+                    const fileUrl = publicUrlData.publicUrl;
 
-                    // 步驟 C: 將表單文字資料與圖片 URL 存入 Supabase Database
-                    const traineeName = document.getElementById('trainee_name').value;
-                    const storeName = document.getElementById('store_name').value;
-                    const shift = document.getElementById('shift').value;
-
+                    // 3. 寫入 Database 表格紀錄同步
                     const { error: dbError } = await supabase
-                        .from('form_submissions')
+                        .from('form_records')
                         .insert([
-                            { 
-                                trainee_name: traineeName, 
-                                store_name: storeName, 
-                                shift: shift,
-                                image_url: imageUrl
-                            }
+                            { file_name: filename, image_url: fileUrl }
                         ]);
 
                     if (dbError) throw dbError;
-
-                    // 步驟 D: 提供使用者下載該截圖
-                    downloadImage(canvasResult.toDataURL("image/png"), fileName);
-
-                    alert('表單已成功儲存至 Supabase，並已下載圖片！');
-
-                }, 'image/png');
-
+                }
+                
+                statusText.innerText = "✅ 儲存成功！已同步至 Supabase。";
+                statusText.style.color = "green";
             } catch (error) {
-                console.error("Error:", error);
-                alert("發生錯誤：" + error.message);
-            } finally {
-                submitBtn.disabled = false;
-                loadingMsg.style.display = 'none';
+                console.error("Upload error:", error);
+                statusText.innerText = "❌ 儲存失敗：" + error.message;
+                statusText.style.color = "red";
             }
-        }
-
-        // 觸發本地下載的函數
-        function downloadImage(dataUrl, filename) {
-            const link = document.createElement('a');
-            link.href = dataUrl;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
         }
     </script>
 </body>
