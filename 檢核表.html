@@ -17,18 +17,22 @@
         }
         h1 { color: #333; text-align: center; font-size: 24px; margin-bottom: 15px;}
         
-        .info-card {
+        .card {
             background: white;
             padding: 15px;
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             width: 100%;
-            max-width: 600px;
+            max-width: 800px;
             margin-bottom: 15px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
         }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
         .info-group {
             display: flex;
             flex-direction: column;
@@ -60,24 +64,25 @@
             flex-wrap: wrap;
             justify-content: center;
             width: 100%;
-            max-width: 600px;
+            max-width: 800px;
         }
         
         select, button {
             padding: 10px 15px;
-            font-size: 15px;
+            font-size: 14px;
             cursor: pointer;
             border: none;
             border-radius: 5px;
             font-weight: bold;
         }
-        select { border: 1px solid #ccc; background: white; }
+        select { border: 1px solid #ccc; background: white; flex-grow: 1;}
         button { background-color: #007bff; color: white; transition: 0.3s; }
         button:hover { background-color: #0056b3; }
         .btn-clear { background-color: #dc3545; }
         .btn-clear:hover { background-color: #c82333; }
-        .btn-save { background-color: #28a745; width: 100%; }
+        .btn-save { background-color: #28a745; }
         .btn-save:hover { background-color: #218838; }
+        .btn-download { background-color: #17a2b8; }
         
         .canvas-container {
             margin-bottom: 30px;
@@ -98,42 +103,54 @@
             cursor: crosshair;
         }
         #status { font-weight: bold; color: #007bff; margin-bottom: 15px; text-align: center; width: 100%; }
+
+        .record-section {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            align-items: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #ccc;
+        }
     </style>
 </head>
 <body>
 
     <h1>📝 實習檢核表 - 線上簽核</h1>
 
-    <div class="info-card">
-        <div class="info-group">
-            <label>📅 實習日期：</label>
-            <input type="date" id="internshipDate">
+    <!-- 填寫資料區 -->
+    <div class="card">
+        <div class="info-grid">
+            <div class="info-group"><label>📅 實習日期</label><input type="date" id="internshipDate"></div>
+            <div class="info-group"><label>👤 名稱 (填寫人)</label><input type="text" id="staffName" placeholder="請輸入姓名"></div>
+            <div class="info-group"><label>🌱 種子人員 1</label><input type="text" id="seedStaff1" placeholder="種子人員 1"></div>
+            <div class="info-group"><label>🌱 種子人員 2</label><input type="text" id="seedStaff2" placeholder="種子人員 2"></div>
+            <div class="info-group"><label>🏬 本身所在門市</label><input type="text" id="ownStore" placeholder="例：台北大安店"></div>
+            <div class="info-group"><label>⏰ 班別</label><input type="text" id="shift" placeholder="例：早班/晚班"></div>
         </div>
-        <div class="info-group">
-            <label>👤 名稱 (填寫人)：</label>
-            <input type="text" id="staffName" placeholder="請輸入您的姓名">
-        </div>
-        <div class="info-group">
-            <label>🌱 種子人員 1：</label>
-            <input type="text" id="seedStaff1" placeholder="種子人員 1 姓名">
-        </div>
-        <div class="info-group">
-            <label>🌱 種子人員 2：</label>
-            <input type="text" id="seedStaff2" placeholder="種子人員 2 姓名">
+        
+        <!-- 讀取與下載歷史紀錄區 -->
+        <div class="record-section">
+            <select id="recordSelector">
+                <option value="">-- 載入雲端紀錄中... --</option>
+            </select>
+            <button class="btn-download" onclick="downloadSelectedRecord()">📥 下載選擇紀錄</button>
         </div>
     </div>
 
+    <!-- 工具列 -->
     <div class="toolbar">
-        <select id="colorPicker">
+        <select id="colorPicker" style="flex-grow: 0;">
             <option value="blue">藍筆 (Blue)</option>
             <option value="black">黑筆 (Black)</option>
             <option value="red">紅筆 (Red)</option>
         </select>
         <button class="btn-clear" onclick="clearCanvas()">🧹 還原畫布</button>
-        <button class="btn-save" onclick="saveAndUploadToSupabase()">☁️ 儲存紀錄、下載截圖並上傳</button>
+        <button class="btn-save" onclick="saveAndUploadToSupabase()">☁️ 儲存紀錄並上傳</button>
     </div>
     
-    <div id="status">正在從 Supabase 載入圖檔...</div>
+    <div id="status">正在從 Supabase 載入圖檔... (若持續空白，請檢查 Supabase 儲存桶 CORS 設定)</div>
 
     <div class="canvas-container">
         <canvas id="canvas1"></canvas>
@@ -144,7 +161,7 @@
     </div>
 
     <script>
-        // 初始化 Supabase
+        // 初始化 Supabase (請確認 Key 正確)
         const supabaseUrl = 'https://hyvcfxwoewvbpfzvfdnn.supabase.co';
         const supabaseKey = 'sb_publishable_TR5C2Zc7eOj9uUosUUsX4g_KbBOwey2';
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -160,8 +177,14 @@
         let isDrawing = false;
         let lastX = 0, lastY = 0;
 
-        // 透過 fetch 轉為 Base64 載入，完美解決 CORS 跨來源白畫面問題
-        async function loadImagesViaBase64() {
+        window.onload = () => {
+            document.getElementById('internshipDate').valueAsDate = new Date();
+            loadImagesViaFetch();
+            loadRecordsFromDatabase(); // 載入歷史紀錄到下拉選單
+        };
+
+        // 讀取圖檔並解決白畫面的進階寫法
+        async function loadImagesViaFetch() {
             const statusEl = document.getElementById('status');
             let loadedCount = 0;
 
@@ -172,45 +195,45 @@
                 config.ctx = ctx;
 
                 try {
-                    const response = await fetch(config.src + "?t=" + Date.now());
+                    // 使用 fetch 並強制 mode: 'cors'
+                    const response = await fetch(config.src + "?t=" + Date.now(), { mode: 'cors' });
                     if (!response.ok) throw new Error("網路請求失敗");
                     const blob = await response.blob();
+                    const objectURL = URL.createObjectURL(blob);
                     
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const img = new Image();
-                        img.onload = () => {
-                            config.img = img;
-                            config.loaded = true;
+                    const img = new Image();
+                    img.onload = () => {
+                        config.img = img;
+                        config.loaded = true;
 
-                            const MAX_WIDTH = 1200;
-                            let targetWidth = img.width;
-                            let targetHeight = img.height;
+                        const MAX_WIDTH = 1200;
+                        let targetWidth = img.width;
+                        let targetHeight = img.height;
 
-                            if (targetWidth > MAX_WIDTH) {
-                                targetHeight = (MAX_WIDTH / targetWidth) * targetHeight;
-                                targetWidth = MAX_WIDTH;
-                            }
+                        if (targetWidth > MAX_WIDTH) {
+                            targetHeight = (MAX_WIDTH / targetWidth) * targetHeight;
+                            targetWidth = MAX_WIDTH;
+                        }
 
-                            canvas.width = targetWidth;
-                            canvas.height = targetHeight;
-                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        canvas.width = targetWidth;
+                        canvas.height = targetHeight;
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        URL.revokeObjectURL(objectURL); // 釋放記憶體
 
-                            loadedCount++;
-                            if (loadedCount === configs.length) {
-                                statusEl.innerText = "✅ 圖檔載入完成，可以開始手寫！";
-                                statusEl.style.color = "#28a745";
-                            }
-                        };
-                        img.src = e.target.result;
+                        loadedCount++;
+                        if (loadedCount === configs.length) {
+                            statusEl.innerText = "✅ 圖檔載入完成，可以開始手寫！";
+                            statusEl.style.color = "#28a745";
+                        }
                     };
-                    reader.readAsDataURL(blob);
+                    img.src = objectURL;
 
                 } catch (err) {
-                    console.error("載入失敗，啟動備用畫布", err);
+                    console.error("載入失敗:", err);
                     createFallbackCanvas(canvas, ctx, config.id);
-                    config.loaded = true;
-                    loadedCount++;
+                    statusEl.innerText = "⚠️ 遠端圖檔載入失敗，請確認 Supabase CORS 設置已開啟！";
+                    statusEl.style.color = "red";
                 }
 
                 // 註冊繪圖互動事件
@@ -230,50 +253,38 @@
             canvas.height = 600;
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#333333";
+            ctx.fillStyle = "#ff0000";
             ctx.font = "bold 20px sans-serif";
-            ctx.fillText(`⚠️ 遠端圖檔載入失敗 (${id})`, 30, 50);
-            ctx.font = "14px sans-serif";
-            ctx.fillText("請檢查 Supabase Storage 是否確實存在 checklist_1.jpg 與 checklist_2.jpg", 30, 90);
+            ctx.fillText(`⚠️ 圖檔載入失敗 (${id})`, 30, 50);
+            ctx.font = "16px sans-serif";
+            ctx.fillStyle = "#333";
+            ctx.fillText("原因：您的 Supabase Storage 未開啟 CORS 跨域權限。", 30, 90);
+            ctx.fillText("請至 Supabase 後台 -> Storage -> Configuration -> CORS settings 添加規則。", 30, 120);
         }
-
-        window.onload = () => {
-            // 自動預設填入今天的日期
-            document.getElementById('internshipDate').valueAsDate = new Date();
-            loadImagesViaBase64();
-        };
 
         function getCoordinates(e, canvas) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            
             let clientX = e.clientX;
             let clientY = e.clientY;
-
             if (e.touches && e.touches.length > 0) {
                 clientX = e.touches[0].clientX;
                 clientY = e.touches[0].clientY;
             }
-
-            return {
-                x: (clientX - rect.left) * scaleX,
-                y: (clientY - rect.top) * scaleY
-            };
+            return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
         }
 
         function startDrawing(e, canvas) {
             if (e.cancelable) e.preventDefault();
             isDrawing = true;
             const pos = getCoordinates(e, canvas);
-            lastX = pos.x;
-            lastY = pos.y;
+            lastX = pos.x; lastY = pos.y;
         }
 
         function draw(e, canvas, ctx) {
             if (!isDrawing) return;
             if (e.cancelable) e.preventDefault();
-            
             const pos = getCoordinates(e, canvas);
             const color = document.getElementById('colorPicker').value;
 
@@ -286,47 +297,98 @@
             ctx.lineJoin = 'round';
             ctx.stroke();
 
-            lastX = pos.x;
-            lastY = pos.y;
+            lastX = pos.x; lastY = pos.y;
         }
 
-        function stopDrawing() {
-            isDrawing = false;
-        }
+        function stopDrawing() { isDrawing = false; }
 
         function clearCanvas() {
             configs.forEach(config => {
                 if(config.ctx) {
                     const canvas = document.getElementById(config.id);
                     config.ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    if(config.img) {
-                        config.ctx.drawImage(config.img, 0, 0, canvas.width, canvas.height);
-                    } else {
-                        createFallbackCanvas(canvas, config.ctx, config.id);
-                    }
+                    if(config.img) config.ctx.drawImage(config.img, 0, 0, canvas.width, canvas.height);
                 }
             });
             document.getElementById('status').innerText = "✅ 畫布已還原";
-            setTimeout(() => document.getElementById('status').innerText = "✅ 系統就緒，可以開始手寫！", 2000);
         }
 
         function canvasToBlobAsync(canvas) {
-            return new Promise((resolve) => {
-                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85);
-            });
+            return new Promise((resolve) => { canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85); });
         }
 
-        // 儲存至 Supabase 資料庫與儲存桶，並自動下載截圖
+        // ================= 新增功能：載入與下載資料庫紀錄 ================= //
+        
+        async function loadRecordsFromDatabase() {
+            const selector = document.getElementById('recordSelector');
+            try {
+                const { data, error } = await supabase
+                    .from('form_records')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                selector.innerHTML = '<option value="">-- 請選擇歷史紀錄下載 --</option>';
+                data.forEach(record => {
+                    const option = document.createElement('option');
+                    option.value = record.image_url;
+                    option.textContent = record.file_name;
+                    selector.appendChild(option);
+                });
+            } catch (err) {
+                selector.innerHTML = '<option value="">-- 紀錄載入失敗 --</option>';
+                console.error("載入紀錄失敗:", err);
+            }
+        }
+
+        async function downloadSelectedRecord() {
+            const selector = document.getElementById('recordSelector');
+            const url = selector.value;
+            const filename = selector.options[selector.selectedIndex].textContent;
+
+            if (!url) {
+                alert("請先從下拉選單選擇一筆紀錄！");
+                return;
+            }
+
+            try {
+                // 透過 fetch 轉換為 Blob 以強制瀏覽器下載而非新開分頁
+                document.getElementById('status').innerText = "⏳ 正在下載圖檔...";
+                const response = await fetch(url);
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                
+                window.URL.revokeObjectURL(downloadUrl);
+                document.getElementById('status').innerText = "✅ 下載完成！";
+            } catch (error) {
+                console.error("下載失敗:", error);
+                alert("下載失敗，可能是瀏覽器安全性限制，將另開視窗顯示圖檔。");
+                window.open(url, '_blank');
+            }
+        }
+
+        // ================= 更新：儲存與自訂檔名邏輯 ================= //
+
         async function saveAndUploadToSupabase() {
             const statusText = document.getElementById('status');
             
-            // 取得上方填寫的資訊
-            const internshipDate = document.getElementById('internshipDate').value;
-            const staffName = document.getElementById('staffName').value.trim();
-            const seedStaff1 = document.getElementById('seedStaff1').value.trim();
-            const seedStaff2 = document.getElementById('seedStaff2').value.trim();
+            // 取得所有填寫的資訊
+            const date = document.getElementById('internshipDate').value;
+            const name = document.getElementById('staffName').value.trim() || '無名稱';
+            const seed1 = document.getElementById('seedStaff1').value.trim() || '無';
+            const seed2 = document.getElementById('seedStaff2').value.trim() || '無';
+            const store = document.getElementById('ownStore').value.trim() || '無門市';
+            const shift = document.getElementById('shift').value.trim() || '無班別';
 
-            if (!staffName) {
+            if (name === '無名稱') {
                 alert("請填寫「名稱 (填寫人)」後再進行儲存！");
                 document.getElementById('staffName').focus();
                 return;
@@ -336,58 +398,54 @@
             statusText.style.color = "#007bff";
             
             try {
+                // 檔名格式要求：實習日期+名稱+種子人員1+種子人員2+本身所在門市+班別
+                // 避免非法字元，進行字串清理
+                const cleanStr = (str) => str.replace(/[\/\\?%*:|"<>]/g, '_');
+                const baseFilename = `${date}+${cleanStr(name)}+${cleanStr(seed1)}+${cleanStr(seed2)}+${cleanStr(store)}+${cleanStr(shift)}`;
+
                 for (let i = 0; i < configs.length; i++) {
                     const config = configs[i];
                     const canvas = document.getElementById(config.id);
                     const blob = await canvasToBlobAsync(canvas);
                     
-                    // 組合符合您要求的命名與紀錄格式
-                    const safeName = staffName.replace(/[\/\\?%*:|"<>]/g, '_');
-                    const filename = `${internshipDate}_${safeName}_page${i+1}.jpg`;
+                    const filename = `${baseFilename}_page${i+1}.jpg`;
 
-                    // 1. 下載截圖至本機裝置
-                    const dataURL = canvas.toDataURL('image/jpeg', 0.9);
-                    const link = document.createElement('a');
-                    link.download = filename;
-                    link.href = dataURL;
-                    link.click();
-
-                    // 2. 上傳至 Supabase Storage (completed_forms)
+                    // 1. 上傳至 Supabase Storage
                     const { error: storageError } = await supabase.storage
                         .from('completed_forms')
-                        .upload(filename, blob, {
-                            cacheControl: '3600',
-                            upsert: true
-                        });
+                        .upload(filename, blob, { cacheControl: '3600', upsert: true });
 
                     if (storageError) throw storageError;
 
-                    // 3. 取得公開網址
+                    // 2. 取得公開網址
                     const { data: publicUrlData } = supabase.storage
                         .from('completed_forms')
                         .getPublicUrl(filename);
                     
                     const fileUrl = publicUrlData.publicUrl;
 
-                    // 4. 寫入資料庫 form_records 紀錄表
+                    // 3. 寫入資料庫 form_records
                     const { error: dbError } = await supabase
                         .from('form_records')
-                        .insert([
-                            { 
-                                file_name: filename, 
-                                image_url: fileUrl,
-                                internship_date: internshipDate,
-                                staff_name: staffName,
-                                seed_staff_1: seedStaff1,
-                                seed_staff_2: seedStaff2
-                            }
-                        ]);
+                        .insert([{ 
+                            file_name: filename, 
+                            image_url: fileUrl,
+                            internship_date: date,
+                            staff_name: name,
+                            seed_staff_1: seed1,
+                            seed_staff_2: seed2,
+                            own_store: store,
+                            shift: shift
+                        }]);
 
                     if (dbError) throw dbError;
                 }
                 
-                statusText.innerText = "✅ 儲存成功！截圖已下載，資料已完整寫入 Supabase。";
+                statusText.innerText = "✅ 儲存成功！資料已完整寫入 Supabase。";
                 statusText.style.color = "green";
+                
+                // 刷新下拉選單紀錄
+                loadRecordsFromDatabase();
 
                 setTimeout(() => {
                     clearCanvas();
