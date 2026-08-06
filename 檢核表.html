@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>門市人員實習計畫檢核表 - 線上簽署</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>門市人員實習計畫檢核表 - 線上簽署 (Google Drive 整合版)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -117,9 +116,9 @@
 </head>
 <body>
 
-    <h1>📝 實習檢核表 - 線上簽核</h1>
+    <h1>📝 實習檢核表 - 線上簽核 (Google Drive)</h1>
 
-    <!-- 填寫資料區 -->
+    <!-- 資料填寫區 -->
     <div class="card">
         <div class="info-grid">
             <div class="info-group"><label>📅 實習日期</label><input type="date" id="internshipDate"></div>
@@ -130,10 +129,10 @@
             <div class="info-group"><label>⏰ 班別</label><input type="text" id="shift" placeholder="例：早班/晚班"></div>
         </div>
         
-        <!-- 讀取與下載歷史紀錄區 -->
+        <!-- Google Drive 歷史紀錄下拉與下載區 -->
         <div class="record-section">
             <select id="recordSelector">
-                <option value="">-- 載入雲端紀錄中... --</option>
+                <option value="">-- 載入 Google Drive 紀錄中... --</option>
             </select>
             <button class="btn-download" onclick="downloadSelectedRecord()">📥 下載選擇紀錄</button>
         </div>
@@ -147,10 +146,10 @@
             <option value="red">紅筆 (Red)</option>
         </select>
         <button class="btn-clear" onclick="clearCanvas()">🧹 還原畫布</button>
-        <button class="btn-save" onclick="saveAndUploadToSupabase()">☁️ 儲存紀錄並上傳</button>
+        <button class="btn-save" onclick="saveAndUploadToGoogleDrive()">☁️ 儲存截圖至 Google Drive</button>
     </div>
     
-    <div id="status">正在從 Supabase 載入圖檔... (若持續空白，請檢查 Supabase 儲存桶 CORS 設定)</div>
+    <div id="status">正在連線至 Google Drive 載入空白底圖...</div>
 
     <div class="canvas-container">
         <canvas id="canvas1"></canvas>
@@ -161,17 +160,12 @@
     </div>
 
     <script>
-        // 初始化 Supabase (請確認 Key 正確)
-        const supabaseUrl = 'https://hyvcfxwoewvbpfzvfdnn.supabase.co';
-        const supabaseKey = 'sb_publishable_TR5C2Zc7eOj9uUosUUsX4g_KbBOwey2';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-
-        const { data: url1 } = supabase.storage.from('templates').getPublicUrl('checklist_1.jpg');
-        const { data: url2 } = supabase.storage.from('templates').getPublicUrl('checklist_2.jpg');
+        // ⚠️ 請將下方替換為您在步驟一部署產生的 Google Apps Script URL
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyhefQv0rQdpogiTN-JhgHiyAvJFIVF-lrmPbQ3qypJF8JhdRwwLVbZ4YAW6bykNSTEBg/exec";
 
         const configs = [
-            { id: 'canvas1', src: url1.publicUrl, ctx: null, img: null, loaded: false },
-            { id: 'canvas2', src: url2.publicUrl, ctx: null, img: null, loaded: false }
+            { id: 'canvas1', templateName: 'checklist_1.jpg', ctx: null, img: null, loaded: false },
+            { id: 'canvas2', templateName: 'checklist_2.jpg', ctx: null, img: null, loaded: false }
         ];
 
         let isDrawing = false;
@@ -179,12 +173,12 @@
 
         window.onload = () => {
             document.getElementById('internshipDate').valueAsDate = new Date();
-            loadImagesViaFetch();
-            loadRecordsFromDatabase(); // 載入歷史紀錄到下拉選單
+            loadTemplatesFromDrive();
+            loadRecordsFromDrive();
         };
 
-        // 讀取圖檔並解決白畫面的進階寫法
-        async function loadImagesViaFetch() {
+        // 1. 從 Google Drive 載入底圖 (使用 Base64 避開跨域/白畫面問題)
+        async function loadTemplatesFromDrive() {
             const statusEl = document.getElementById('status');
             let loadedCount = 0;
 
@@ -195,12 +189,11 @@
                 config.ctx = ctx;
 
                 try {
-                    // 使用 fetch 並強制 mode: 'cors'
-                    const response = await fetch(config.src + "?t=" + Date.now(), { mode: 'cors' });
-                    if (!response.ok) throw new Error("網路請求失敗");
-                    const blob = await response.blob();
-                    const objectURL = URL.createObjectURL(blob);
-                    
+                    const res = await fetch(`${GAS_WEB_APP_URL}?action=getTemplate&name=${config.templateName}`);
+                    const json = await res.json();
+
+                    if (json.status !== "success") throw new Error(json.message);
+
                     const img = new Image();
                     img.onload = () => {
                         config.img = img;
@@ -218,25 +211,23 @@
                         canvas.width = targetWidth;
                         canvas.height = targetHeight;
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        
-                        URL.revokeObjectURL(objectURL); // 釋放記憶體
 
                         loadedCount++;
                         if (loadedCount === configs.length) {
-                            statusEl.innerText = "✅ 圖檔載入完成，可以開始手寫！";
+                            statusEl.innerText = "✅ 已成功讀取 Google Drive 底圖，可以開始簽核手寫！";
                             statusEl.style.color = "#28a745";
                         }
                     };
-                    img.src = objectURL;
+                    img.src = json.base64;
 
                 } catch (err) {
                     console.error("載入失敗:", err);
-                    createFallbackCanvas(canvas, ctx, config.id);
-                    statusEl.innerText = "⚠️ 遠端圖檔載入失敗，請確認 Supabase CORS 設置已開啟！";
+                    createFallbackCanvas(canvas, ctx, config.templateName);
+                    statusEl.innerText = `❌ 無法載入 Google Drive 底圖 (${config.templateName})，請確認檔案已放至資料夾！`;
                     statusEl.style.color = "red";
                 }
 
-                // 註冊繪圖互動事件
+                // 註冊畫筆事件
                 canvas.addEventListener('mousedown', (e) => startDrawing(e, canvas));
                 canvas.addEventListener('mousemove', (e) => draw(e, canvas, ctx));
                 canvas.addEventListener('mouseup', stopDrawing);
@@ -248,29 +239,23 @@
             }
         }
 
-        function createFallbackCanvas(canvas, ctx, id) {
+        function createFallbackCanvas(canvas, ctx, filename) {
             canvas.width = 800;
             canvas.height = 600;
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#ff0000";
-            ctx.font = "bold 20px sans-serif";
-            ctx.fillText(`⚠️ 圖檔載入失敗 (${id})`, 30, 50);
-            ctx.font = "16px sans-serif";
-            ctx.fillStyle = "#333";
-            ctx.fillText("原因：您的 Supabase Storage 未開啟 CORS 跨域權限。", 30, 90);
-            ctx.fillText("請至 Supabase 後台 -> Storage -> Configuration -> CORS settings 添加規則。", 30, 120);
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#ff0000"; ctx.font = "bold 20px sans-serif";
+            ctx.fillText(`⚠️ 讀取失敗: ${filename}`, 30, 50);
+            ctx.font = "15px sans-serif"; ctx.fillStyle = "#333";
+            ctx.fillText("請確認已將 checklist_1.jpg 和 checklist_2.jpg 上傳至 Google Drive 資料夾中。", 30, 90);
         }
 
         function getCoordinates(e, canvas) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            let clientX = e.clientX;
-            let clientY = e.clientY;
+            let clientX = e.clientX, clientY = e.clientY;
             if (e.touches && e.touches.length > 0) {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
+                clientX = e.touches[0].clientX; clientY = e.touches[0].clientY;
             }
             return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
         }
@@ -313,74 +298,65 @@
             document.getElementById('status').innerText = "✅ 畫布已還原";
         }
 
-        function canvasToBlobAsync(canvas) {
-            return new Promise((resolve) => { canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.85); });
-        }
-
-        // ================= 新增功能：載入與下載資料庫紀錄 ================= //
-        
-        async function loadRecordsFromDatabase() {
+        // 2. 讀取 Google Drive 儲存紀錄下拉清單
+        async function loadRecordsFromDrive() {
             const selector = document.getElementById('recordSelector');
             try {
-                const { data, error } = await supabase
-                    .from('form_records')
-                    .select('*')
-                    .order('created_at', { ascending: false });
+                const res = await fetch(`${GAS_WEB_APP_URL}?action=listRecords`);
+                const json = await res.json();
 
-                if (error) throw error;
+                if (json.status !== "success") throw new Error(json.message);
 
-                selector.innerHTML = '<option value="">-- 請選擇歷史紀錄下載 --</option>';
-                data.forEach(record => {
+                selector.innerHTML = '<option value="">-- 請選擇 Google Drive 紀錄下載 --</option>';
+                json.data.forEach(item => {
                     const option = document.createElement('option');
-                    option.value = record.image_url;
-                    option.textContent = record.file_name;
+                    option.value = item.id;
+                    option.textContent = item.name;
                     selector.appendChild(option);
                 });
             } catch (err) {
-                selector.innerHTML = '<option value="">-- 紀錄載入失敗 --</option>';
-                console.error("載入紀錄失敗:", err);
+                selector.innerHTML = '<option value="">-- 載入 Google Drive 紀錄失敗 --</option>';
+                console.error("載入失敗:", err);
             }
         }
 
+        // 3. 下載所選 Google Drive 檔案
         async function downloadSelectedRecord() {
             const selector = document.getElementById('recordSelector');
-            const url = selector.value;
-            const filename = selector.options[selector.selectedIndex].textContent;
+            const fileId = selector.value;
 
-            if (!url) {
-                alert("請先從下拉選單選擇一筆紀錄！");
+            if (!fileId) {
+                alert("請先選擇一份歷史紀錄！");
                 return;
             }
 
+            const statusText = document.getElementById('status');
+            statusText.innerText = "⏳ 正在從 Google Drive 下載圖檔...";
+
             try {
-                // 透過 fetch 轉換為 Blob 以強制瀏覽器下載而非新開分頁
-                document.getElementById('status').innerText = "⏳ 正在下載圖檔...";
-                const response = await fetch(url);
-                const blob = await response.blob();
-                const downloadUrl = window.URL.createObjectURL(blob);
-                
+                const res = await fetch(`${GAS_WEB_APP_URL}?action=getFileBase64&id=${fileId}`);
+                const json = await res.json();
+
+                if (json.status !== "success") throw new Error("下載失敗");
+
                 const link = document.createElement('a');
-                link.href = downloadUrl;
-                link.download = filename;
+                link.href = json.base64;
+                link.download = json.name;
                 document.body.appendChild(link);
                 link.click();
                 link.remove();
-                
-                window.URL.revokeObjectURL(downloadUrl);
-                document.getElementById('status').innerText = "✅ 下載完成！";
-            } catch (error) {
-                console.error("下載失敗:", error);
-                alert("下載失敗，可能是瀏覽器安全性限制，將另開視窗顯示圖檔。");
-                window.open(url, '_blank');
+
+                statusText.innerText = "✅ 圖檔已成功下載！";
+            } catch (err) {
+                console.error("下載失敗:", err);
+                alert("下載失敗，請稍後重試。");
             }
         }
 
-        // ================= 更新：儲存與自訂檔名邏輯 ================= //
-
-        async function saveAndUploadToSupabase() {
+        // 4. 儲存截圖至 Google Drive
+        async function saveAndUploadToGoogleDrive() {
             const statusText = document.getElementById('status');
             
-            // 取得所有填寫的資訊
             const date = document.getElementById('internshipDate').value;
             const name = document.getElementById('staffName').value.trim() || '無名稱';
             const seed1 = document.getElementById('seedStaff1').value.trim() || '無';
@@ -389,72 +365,51 @@
             const shift = document.getElementById('shift').value.trim() || '無班別';
 
             if (name === '無名稱') {
-                alert("請填寫「名稱 (填寫人)」後再進行儲存！");
+                alert("請填寫「名稱 (填寫人)」後再儲存！");
                 document.getElementById('staffName').focus();
                 return;
             }
 
-            statusText.innerText = "⏳ 正在處理並上傳至 Supabase，請稍候...";
+            statusText.innerText = "⏳ 正在上傳至 Google Drive 共用資料夾，請稍候...";
             statusText.style.color = "#007bff";
-            
-            try {
-                // 檔名格式要求：實習日期+名稱+種子人員1+種子人員2+本身所在門市+班別
-                // 避免非法字元，進行字串清理
-                const cleanStr = (str) => str.replace(/[\/\\?%*:|"<>]/g, '_');
-                const baseFilename = `${date}+${cleanStr(name)}+${cleanStr(seed1)}+${cleanStr(seed2)}+${cleanStr(store)}+${cleanStr(shift)}`;
 
+            // 檔名格式：實習日期+名稱+種子人員1+種子人員2+本身所在門市+班別
+            const cleanStr = (s) => s.replace(/[\/\\?%*:|"<>]/g, '_');
+            const baseFilename = `${date}+${cleanStr(name)}+${cleanStr(seed1)}+${cleanStr(seed2)}+${cleanStr(store)}+${cleanStr(shift)}`;
+
+            try {
                 for (let i = 0; i < configs.length; i++) {
-                    const config = configs[i];
-                    const canvas = document.getElementById(config.id);
-                    const blob = await canvasToBlobAsync(canvas);
-                    
+                    const canvas = document.getElementById(configs[i].id);
+                    const base64Data = canvas.toDataURL('image/jpeg', 0.85);
                     const filename = `${baseFilename}_page${i+1}.jpg`;
 
-                    // 1. 上傳至 Supabase Storage
-                    const { error: storageError } = await supabase.storage
-                        .from('completed_forms')
-                        .upload(filename, blob, { cacheControl: '3600', upsert: true });
+                    const response = await fetch(GAS_WEB_APP_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            fileName: filename,
+                            base64Data: base64Data,
+                            contentType: 'image/jpeg'
+                        })
+                    });
 
-                    if (storageError) throw storageError;
-
-                    // 2. 取得公開網址
-                    const { data: publicUrlData } = supabase.storage
-                        .from('completed_forms')
-                        .getPublicUrl(filename);
-                    
-                    const fileUrl = publicUrlData.publicUrl;
-
-                    // 3. 寫入資料庫 form_records
-                    const { error: dbError } = await supabase
-                        .from('form_records')
-                        .insert([{ 
-                            file_name: filename, 
-                            image_url: fileUrl,
-                            internship_date: date,
-                            staff_name: name,
-                            seed_staff_1: seed1,
-                            seed_staff_2: seed2,
-                            own_store: store,
-                            shift: shift
-                        }]);
-
-                    if (dbError) throw dbError;
+                    const result = await response.json();
+                    if (result.status !== 'success') throw new Error(result.message);
                 }
-                
-                statusText.innerText = "✅ 儲存成功！資料已完整寫入 Supabase。";
+
+                statusText.innerText = "✅ 儲存成功！簽核圖片已存入 Google Drive 共用資料夾。";
                 statusText.style.color = "green";
-                
-                // 刷新下拉選單紀錄
-                loadRecordsFromDatabase();
+
+                // 重新刷新下拉歷史清單
+                loadRecordsFromDrive();
 
                 setTimeout(() => {
                     clearCanvas();
-                    statusText.innerText = "✅ 畫面已還原，可以進行下一位填寫！";
+                    statusText.innerText = "✅ 畫布已還原，可進行下一位簽核！";
                 }, 3000);
 
             } catch (error) {
                 console.error("Upload error:", error);
-                statusText.innerText = "❌ 儲存失敗：" + error.message;
+                statusText.innerText = "❌ 儲存至 Google Drive 失敗：" + error.message;
                 statusText.style.color = "red";
             }
         }
