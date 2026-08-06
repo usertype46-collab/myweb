@@ -81,12 +81,12 @@
             <option value="black">黑筆 (Black)</option>
             <option value="red">紅筆 (Red)</option>
         </select>
-        <button class="btn-clear" onclick="clearCanvas()">🧹 清除重寫</button>
-        <button onclick="downloadImage()">⬇️ 下載圖片</button>
+        <button class="btn-clear" onclick="clearCanvas()">🧹 清除</button>
+        <button onclick="downloadImage()">⬇️ 下載</button>
         <button class="btn-save" onclick="saveToSupabase()">☁️ 儲存並上傳至 Supabase</button>
     </div>
     
-    <div id="status">正在載入圖片，請稍候...</div>
+    <div id="status">正在自動偵測並載入圖片，請稍候...</div>
 
     <div class="canvas-container">
         <canvas id="canvas1"></canvas>
@@ -102,78 +102,101 @@
         const supabaseKey = 'sb_publishable_TR5C2Zc7eOj9uUosUUsX4g_KbBOwey2';
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        // 圖片直接放在根目錄，不需要 templates 資料夾
+        // 設定多重路徑自動嘗試機制，確保無論檔案在根目錄或 templates 資料夾都能被讀到
         const configs = [
-            { id: 'canvas1', src: '1604.jpg', ctx: null, img: null, loaded: false },
-            { id: 'canvas2', src: '1603.jpg', ctx: null, img: null, loaded: false }
+            { 
+                id: 'canvas1', 
+                paths: ['./templates/1604.jpg', 'templates/1604.jpg', './1604.jpg', '1604.jpg'], 
+                ctx: null, img: null, loaded: false 
+            },
+            { 
+                id: 'canvas2', 
+                paths: ['./templates/1603.jpg', 'templates/1603.jpg', './1603.jpg', '1603.jpg'], 
+                ctx: null, img: null, loaded: false 
+            }
         ];
 
         let isDrawing = false;
         let lastX = 0, lastY = 0;
+
+        // 依序嘗試載入圖片路徑的函數
+        function loadConfigImage(config, callback) {
+            let pathIndex = 0;
+
+            function tryNextPath() {
+                if (pathIndex >= config.paths.length) {
+                    callback(false);
+                    return;
+                }
+                const currentPath = config.paths[pathIndex];
+                pathIndex++;
+
+                const img = new Image();
+                img.crossOrigin = "Anonymous";
+
+                img.onload = () => {
+                    config.img = img;
+                    config.loaded = true;
+                    callback(true, currentPath);
+                };
+
+                img.onerror = () => {
+                    tryNextPath();
+                };
+
+                img.src = currentPath;
+            }
+
+            tryNextPath();
+        }
 
         // 初始化畫布與載入背景圖
         window.onload = () => {
             let loadedCount = 0;
             const statusEl = document.getElementById('status');
 
-            // 設置 8 秒防卡死計時器，避免手機網路慢或檔案找不到時無限卡住
-            const timeoutTimer = setTimeout(() => {
-                if (loadedCount < configs.length) {
-                    statusEl.innerText = "❌ 圖片載入超時！請檢查檔名是否完全正確 (需為 1604.jpg 與 1603.jpg)";
-                    statusEl.style.color = "red";
-                }
-            }, 8000);
-
             configs.forEach(config => {
                 const canvas = document.getElementById(config.id);
                 const ctx = canvas.getContext('2d');
                 config.ctx = ctx;
-                
-                const img = new Image();
-                img.crossOrigin = "Anonymous"; 
-                
-                img.onload = () => {
-                    const MAX_WIDTH = 1200;
-                    let targetWidth = img.width;
-                    let targetHeight = img.height;
 
-                    if (targetWidth > MAX_WIDTH) {
-                        targetHeight = (MAX_WIDTH / targetWidth) * targetHeight;
-                        targetWidth = MAX_WIDTH;
+                loadConfigImage(config, (success, pathUsed) => {
+                    if (success) {
+                        console.log(`成功載入: ${pathUsed}`);
+                        const img = config.img;
+                        const MAX_WIDTH = 1200;
+                        let targetWidth = img.width;
+                        let targetHeight = img.height;
+
+                        if (targetWidth > MAX_WIDTH) {
+                            targetHeight = (MAX_WIDTH / targetWidth) * targetHeight;
+                            targetWidth = MAX_WIDTH;
+                        }
+
+                        canvas.width = targetWidth;
+                        canvas.height = targetHeight;
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                        loadedCount++;
+                        if (loadedCount === configs.length) {
+                            statusEl.innerText = "✅ 圖片載入完成，可以開始手寫！";
+                            statusEl.style.color = "#28a745";
+                        }
+                    } else {
+                        console.error(`所有路徑嘗試失敗:`, config.paths);
+                        canvas.width = 400;
+                        canvas.height = 150;
+                        ctx.fillStyle = "#f8d7da";
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.fillStyle = "#721c24";
+                        ctx.font = "bold 16px sans-serif";
+                        ctx.fillText("❌ 找不到圖片檔案", 20, 40);
+                        ctx.font = "12px sans-serif";
+                        ctx.fillText("請確認 1603.jpg / 1604.jpg 是否已上傳", 20, 75);
+                        statusEl.innerText = "⚠️ 圖片載入失敗，請檢查檔案名稱與位置";
+                        statusEl.style.color = "red";
                     }
-
-                    canvas.width = targetWidth;
-                    canvas.height = targetHeight;
-                    
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    config.img = img;
-                    config.loaded = true;
-                    
-                    loadedCount++;
-                    if (loadedCount === configs.length) {
-                        clearTimeout(timeoutTimer);
-                        statusEl.innerText = "✅ 圖片載入完成，可以開始手寫！";
-                        statusEl.style.color = "#28a745";
-                    }
-                };
-
-                img.onerror = (err) => {
-                    clearTimeout(timeoutTimer);
-                    console.error("Image load failed:", config.src, err);
-                    canvas.width = 400;
-                    canvas.height = 150;
-                    ctx.fillStyle = "#f8d7da";
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = "#721c24";
-                    ctx.font = "bold 16px sans-serif";
-                    ctx.fillText("❌ 找不到圖片檔案", 20, 40);
-                    ctx.font = "13px sans-serif";
-                    ctx.fillText("請將 " + config.src + " 放在與網頁同一個資料夾", 20, 75);
-                    statusEl.innerText = "⚠️ 圖片載入失敗，請確認檔案位置";
-                    statusEl.style.color = "red";
-                };
-
-                img.src = config.src;
+                });
 
                 // 註冊滑鼠與觸控事件
                 canvas.addEventListener('mousedown', (e) => startDrawing(e, canvas));
