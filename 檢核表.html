@@ -103,15 +103,16 @@
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         // 設定多重路徑自動嘗試機制，確保無論檔案在根目錄或 templates 資料夾都能被讀到
+        // 已將 1604.jpg 與 1603.jpg 更新為 檢核表_1.jpg 與 檢核表_2.jpg
         const configs = [
             { 
                 id: 'canvas1', 
-                paths: ['./templates/1604.jpg', 'templates/1604.jpg', './1604.jpg', '1604.jpg'], 
+                paths: ['./templates/檢核表_1.jpg', 'templates/檢核表_1.jpg', './檢核表_1.jpg', '檢核表_1.jpg'], 
                 ctx: null, img: null, loaded: false 
             },
             { 
                 id: 'canvas2', 
-                paths: ['./templates/1603.jpg', 'templates/1603.jpg', './1603.jpg', '1603.jpg'], 
+                paths: ['./templates/檢核表_2.jpg', 'templates/檢核表_2.jpg', './檢核表_2.jpg', '檢核表_2.jpg'], 
                 ctx: null, img: null, loaded: false 
             }
         ];
@@ -192,7 +193,7 @@
                         ctx.font = "bold 16px sans-serif";
                         ctx.fillText("❌ 找不到圖片檔案", 20, 40);
                         ctx.font = "12px sans-serif";
-                        ctx.fillText("請確認 1603.jpg / 1604.jpg 是否已上傳", 20, 75);
+                        ctx.fillText("請確認 檢核表_1.jpg / 檢核表_2.jpg 是否已上傳", 20, 75);
                         statusEl.innerText = "⚠️ 圖片載入失敗，請檢查檔案名稱與位置";
                         statusEl.style.color = "red";
                     }
