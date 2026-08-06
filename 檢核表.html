@@ -83,6 +83,9 @@
         .btn-save:hover { background-color: #218838; }
         .btn-download { background-color: #17a2b8; }
         
+        /* 特別強調模式切換按鈕 */
+        #drawMode { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; font-weight: bold; }
+
         .canvas-container {
             margin-bottom: 30px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
@@ -112,11 +115,56 @@
             padding-top: 10px;
             border-top: 1px dashed #ccc;
         }
+
+        /* 放大鏡手寫 Modal 樣式 */
+        .modal {
+            display: none; 
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+        .modal-canvas-wrapper {
+            position: relative;
+            width: 100%;
+            background: #f8f9fa;
+            margin: 15px 0;
+            border: 2px dashed #007bff;
+            border-radius: 6px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        .modal-canvas-wrapper canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            touch-action: none;
+        }
+        .modal-buttons {
+            display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; margin-top: 10px;
+        }
+        .btn-cancel { background-color: #6c757d; }
+        .btn-cancel:hover { background-color: #5a6268; }
     </style>
 </head>
 <body>
 
-    <h1>📝 實習檢核表 - 線上簽核 (Google Drive)</h1>
+    <h1>📝 實習檢核表 - 線上簽核</h1>
 
     <!-- 資料填寫區 -->
     <div class="card">
@@ -129,7 +177,6 @@
             <div class="info-group"><label>⏰ 班別</label><input type="text" id="shift" placeholder="例：早班/晚班"></div>
         </div>
         
-        <!-- Google Drive 歷史紀錄下拉與下載區 -->
         <div class="record-section">
             <select id="recordSelector">
                 <option value="">-- 載入 Google Drive 紀錄中... --</option>
@@ -140,10 +187,14 @@
 
     <!-- 工具列 -->
     <div class="toolbar">
-        <select id="colorPicker" style="flex-grow: 0;">
-            <option value="blue">藍筆 (Blue)</option>
-            <option value="black">黑筆 (Black)</option>
-            <option value="red">紅筆 (Red)</option>
+        <select id="drawMode">
+            <option value="zoom">🔍 點擊放大寫字 (推薦)</option>
+            <option value="draw">✍️ 直接畫筆手寫</option>
+        </select>
+        <select id="colorPicker" style="flex-grow: 0; width: 110px;">
+            <option value="blue">🔵 藍筆</option>
+            <option value="black">⚫ 黑筆</option>
+            <option value="red">🔴 紅筆</option>
         </select>
         <button class="btn-clear" onclick="clearCanvas()">🧹 還原畫布</button>
         <button class="btn-save" onclick="saveAndUploadToGoogleDrive()">☁️ 儲存截圖至 Google Drive</button>
@@ -159,8 +210,28 @@
         <canvas id="canvas2"></canvas>
     </div>
 
+    <!-- 放大手寫區 Modal -->
+    <div id="zoomModal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0; color:#333; margin-bottom: 5px;">🔍 局部放大手寫區</h3>
+            <p style="font-size:13px; color:#666; margin-bottom: 0;">請在下方框內簽名或打勾，完成後點擊「確認寫入」。</p>
+            
+            <div class="modal-canvas-wrapper" id="modalCanvasWrapper">
+                <!-- 底層顯示放大的背景圖 -->
+                <canvas id="modalBgCanvas"></canvas>
+                <!-- 頂層用來擷取透明背景的筆跡 -->
+                <canvas id="modalDrawCanvas"></canvas>
+            </div>
+            
+            <div class="modal-buttons">
+                <button class="btn-clear" onclick="clearModalCanvas()">🧹 清除重寫</button>
+                <button class="btn-cancel" onclick="closeZoomModal()">❌ 取消</button>
+                <button class="btn-save" onclick="confirmZoomModal()">✅ 確認寫入</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // ⚠️ 請將下方替換為您在步驟一部署產生的 Google Apps Script URL
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyhefQv0rQdpogiTN-JhgHiyAvJFIVF-lrmPbQ3qypJF8JhdRwwLVbZ4YAW6bykNSTEBg/exec";
 
         const configs = [
@@ -170,14 +241,16 @@
 
         let isDrawing = false;
         let lastX = 0, lastY = 0;
+        let zoomContext = null; // 用來儲存放大鏡的座標對應資料
 
         window.onload = () => {
             document.getElementById('internshipDate').valueAsDate = new Date();
             loadTemplatesFromDrive();
             loadRecordsFromDrive();
+            initModalEvents(); // 初始化放大鏡 Modal 的畫筆事件
         };
 
-        // 1. 從 Google Drive 載入底圖 (使用 Base64 避開跨域/白畫面問題)
+        // ================= 1. 載入圖檔與事件綁定 =================
         async function loadTemplatesFromDrive() {
             const statusEl = document.getElementById('status');
             let loadedCount = 0;
@@ -191,7 +264,6 @@
                 try {
                     const res = await fetch(`${GAS_WEB_APP_URL}?action=getTemplate&name=${config.templateName}`);
                     const json = await res.json();
-
                     if (json.status !== "success") throw new Error(json.message);
 
                     const img = new Image();
@@ -214,39 +286,39 @@
 
                         loadedCount++;
                         if (loadedCount === configs.length) {
-                            statusEl.innerText = "✅ 已成功讀取 Google Drive 底圖，可以開始簽核手寫！";
+                            statusEl.innerText = "✅ 已成功讀取底圖，點選圖片區域即可放大手寫！";
                             statusEl.style.color = "#28a745";
                         }
                     };
                     img.src = json.base64;
 
                 } catch (err) {
-                    console.error("載入失敗:", err);
                     createFallbackCanvas(canvas, ctx, config.templateName);
-                    statusEl.innerText = `❌ 無法載入 Google Drive 底圖 (${config.templateName})，請確認檔案已放至資料夾！`;
+                    statusEl.innerText = `❌ 無法載入 Google Drive 底圖，請確認檔案位置！`;
                     statusEl.style.color = "red";
                 }
 
-                // 註冊畫筆事件
-                canvas.addEventListener('mousedown', (e) => startDrawing(e, canvas));
+                // 註冊畫筆與點擊事件 (改為 handlePointerDown 判斷模式)
+                canvas.addEventListener('mousedown', (e) => handlePointerDown(e, canvas));
                 canvas.addEventListener('mousemove', (e) => draw(e, canvas, ctx));
                 canvas.addEventListener('mouseup', stopDrawing);
                 canvas.addEventListener('mouseout', stopDrawing);
 
-                canvas.addEventListener('touchstart', (e) => startDrawing(e, canvas), { passive: false });
+                canvas.addEventListener('touchstart', (e) => handlePointerDown(e, canvas), { passive: false });
                 canvas.addEventListener('touchmove', (e) => draw(e, canvas, ctx), { passive: false });
                 canvas.addEventListener('touchend', stopDrawing);
             }
         }
 
-        function createFallbackCanvas(canvas, ctx, filename) {
-            canvas.width = 800;
-            canvas.height = 600;
-            ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#ff0000"; ctx.font = "bold 20px sans-serif";
-            ctx.fillText(`⚠️ 讀取失敗: ${filename}`, 30, 50);
-            ctx.font = "15px sans-serif"; ctx.fillStyle = "#333";
-            ctx.fillText("請確認已將 checklist_1.jpg 和 checklist_2.jpg 上傳至 Google Drive 資料夾中。", 30, 90);
+        // ================= 2. 模式判斷與共用繪圖邏輯 =================
+        function handlePointerDown(e, canvas) {
+            const mode = document.getElementById('drawMode').value;
+            if (mode === 'zoom') {
+                if (e.cancelable) e.preventDefault(); // 阻止滾動
+                openZoomModal(e, canvas);
+            } else {
+                startDrawing(e, canvas);
+            }
         }
 
         function getCoordinates(e, canvas) {
@@ -272,12 +344,14 @@
             if (e.cancelable) e.preventDefault();
             const pos = getCoordinates(e, canvas);
             const color = document.getElementById('colorPicker').value;
+            const isModal = (canvas.id === 'modalDrawCanvas'); // 判斷是否在放大鏡內
 
             ctx.beginPath();
             ctx.moveTo(lastX, lastY);
             ctx.lineTo(pos.x, pos.y);
             ctx.strokeStyle = color;
-            ctx.lineWidth = 4;
+            // 放大鏡模式下畫筆加粗，以便縮小貼回原圖時比例正常
+            ctx.lineWidth = isModal ? 8 : 3; 
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             ctx.stroke();
@@ -298,15 +372,108 @@
             document.getElementById('status').innerText = "✅ 畫布已還原";
         }
 
-        // 2. 讀取 Google Drive 儲存紀錄下拉清單
+        // ================= 3. 放大鏡手寫 (Zoom Modal) 核心邏輯 =================
+        function initModalEvents() {
+            const mCanvas = document.getElementById('modalDrawCanvas');
+            const mCtx = mCanvas.getContext('2d');
+            
+            mCanvas.addEventListener('mousedown', (e) => startDrawing(e, mCanvas));
+            mCanvas.addEventListener('mousemove', (e) => draw(e, mCanvas, mCtx));
+            mCanvas.addEventListener('mouseup', stopDrawing);
+            mCanvas.addEventListener('mouseout', stopDrawing);
+
+            mCanvas.addEventListener('touchstart', (e) => startDrawing(e, mCanvas), { passive: false });
+            mCanvas.addEventListener('touchmove', (e) => draw(e, mCanvas, mCtx), { passive: false });
+            mCanvas.addEventListener('touchend', stopDrawing);
+        }
+
+        function openZoomModal(e, canvas) {
+            const pos = getCoordinates(e, canvas);
+            
+            // 擷取框的原始大小 (寬500, 高250)
+            let cw = Math.min(500, canvas.width);
+            let ch = Math.min(250, canvas.height);
+
+            // 計算擷取中心點
+            let sx = pos.x - cw / 2;
+            let sy = pos.y - ch / 2;
+
+            // 邊界防呆處理 (不可超出畫布)
+            if (sx < 0) sx = 0;
+            if (sy < 0) sy = 0;
+            if (sx + cw > canvas.width) sx = canvas.width - cw;
+            if (sy + ch > canvas.height) sy = canvas.height - ch;
+
+            // 記憶目前的位置，供稍後貼回使用
+            zoomContext = { targetCanvas: canvas, sx, sy, cw, ch };
+
+            const modalBg = document.getElementById('modalBgCanvas');
+            const modalDraw = document.getElementById('modalDrawCanvas');
+            const wrapper = document.getElementById('modalCanvasWrapper');
+
+            // 放大倍率：放大 2 倍讓手機更好寫
+            const SCALE = 2;
+            const mw = cw * SCALE;
+            const mh = ch * SCALE;
+
+            // 設定 CSS 比例與 Canvas 內部解析度
+            wrapper.style.aspectRatio = `${cw} / ${ch}`;
+            modalBg.width = mw; modalBg.height = mh;
+            modalDraw.width = mw; modalDraw.height = mh;
+
+            // 將主畫布的背景區域，放大繪製到 Modal 的底層背景 Canvas 上
+            const bgCtx = modalBg.getContext('2d');
+            bgCtx.drawImage(canvas, sx, sy, cw, ch, 0, 0, mw, mh);
+
+            // 清空頂層的手寫 Canvas
+            clearModalCanvas();
+
+            // 顯示 Modal 並鎖定背景滾動
+            document.getElementById('zoomModal').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function clearModalCanvas() {
+            const modalDraw = document.getElementById('modalDrawCanvas');
+            const ctx = modalDraw.getContext('2d');
+            ctx.clearRect(0, 0, modalDraw.width, modalDraw.height);
+        }
+
+        function closeZoomModal() {
+            document.getElementById('zoomModal').style.display = 'none';
+            document.body.style.overflow = 'auto'; // 恢復背景滾動
+            zoomContext = null;
+        }
+
+        function confirmZoomModal() {
+            if (!zoomContext) return;
+            const mainCtx = zoomContext.targetCanvas.getContext('2d');
+            const modalDraw = document.getElementById('modalDrawCanvas');
+
+            // **核心魔法**：將 Modal 手寫層(只有筆跡透明背景)，完美縮小貼回原本的主畫布區域
+            mainCtx.drawImage(
+                modalDraw, 
+                0, 0, modalDraw.width, modalDraw.height, 
+                zoomContext.sx, zoomContext.sy, zoomContext.cw, zoomContext.ch
+            );
+
+            closeZoomModal();
+        }
+
+        // ================= 4. Google Drive 其他串接功能 (維持原樣) =================
+        function createFallbackCanvas(canvas, ctx, filename) {
+            canvas.width = 800; canvas.height = 600;
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#ff0000"; ctx.font = "bold 20px sans-serif";
+            ctx.fillText(`⚠️ 讀取失敗: ${filename}`, 30, 50);
+        }
+
         async function loadRecordsFromDrive() {
             const selector = document.getElementById('recordSelector');
             try {
                 const res = await fetch(`${GAS_WEB_APP_URL}?action=listRecords`);
                 const json = await res.json();
-
                 if (json.status !== "success") throw new Error(json.message);
-
                 selector.innerHTML = '<option value="">-- 請選擇 Google Drive 紀錄下載 --</option>';
                 json.data.forEach(item => {
                     const option = document.createElement('option');
@@ -315,101 +482,56 @@
                     selector.appendChild(option);
                 });
             } catch (err) {
-                selector.innerHTML = '<option value="">-- 載入 Google Drive 紀錄失敗 --</option>';
-                console.error("載入失敗:", err);
+                selector.innerHTML = '<option value="">-- 載入紀錄失敗 --</option>';
             }
         }
 
-        // 3. 下載所選 Google Drive 檔案
         async function downloadSelectedRecord() {
-            const selector = document.getElementById('recordSelector');
-            const fileId = selector.value;
-
-            if (!fileId) {
-                alert("請先選擇一份歷史紀錄！");
-                return;
-            }
-
-            const statusText = document.getElementById('status');
-            statusText.innerText = "⏳ 正在從 Google Drive 下載圖檔...";
-
+            const fileId = document.getElementById('recordSelector').value;
+            if (!fileId) return alert("請先選擇歷史紀錄！");
+            document.getElementById('status').innerText = "⏳ 正在下載圖檔...";
             try {
                 const res = await fetch(`${GAS_WEB_APP_URL}?action=getFileBase64&id=${fileId}`);
                 const json = await res.json();
-
                 if (json.status !== "success") throw new Error("下載失敗");
-
                 const link = document.createElement('a');
-                link.href = json.base64;
-                link.download = json.name;
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-
-                statusText.innerText = "✅ 圖檔已成功下載！";
-            } catch (err) {
-                console.error("下載失敗:", err);
-                alert("下載失敗，請稍後重試。");
-            }
+                link.href = json.base64; link.download = json.name;
+                document.body.appendChild(link); link.click(); link.remove();
+                document.getElementById('status').innerText = "✅ 下載成功！";
+            } catch (err) { alert("下載失敗重試"); }
         }
 
-        // 4. 儲存截圖至 Google Drive
         async function saveAndUploadToGoogleDrive() {
             const statusText = document.getElementById('status');
-            
             const date = document.getElementById('internshipDate').value;
-            const name = document.getElementById('staffName').value.trim() || '無名稱';
-            const seed1 = document.getElementById('seedStaff1').value.trim() || '無';
-            const seed2 = document.getElementById('seedStaff2').value.trim() || '無';
-            const store = document.getElementById('ownStore').value.trim() || '無門市';
-            const shift = document.getElementById('shift').value.trim() || '無班別';
+            const name = document.getElementById('staffName').value.trim();
+            if (!name) return alert("請填寫姓名！");
 
-            if (name === '無名稱') {
-                alert("請填寫「名稱 (填寫人)」後再儲存！");
-                document.getElementById('staffName').focus();
-                return;
-            }
-
-            statusText.innerText = "⏳ 正在上傳至 Google Drive 共用資料夾，請稍候...";
+            statusText.innerText = "⏳ 正在上傳至 Google Drive...";
             statusText.style.color = "#007bff";
-
-            // 檔名格式：實習日期+名稱+種子人員1+種子人員2+本身所在門市+班別
-            const cleanStr = (s) => s.replace(/[\/\\?%*:|"<>]/g, '_');
-            const baseFilename = `${date}+${cleanStr(name)}+${cleanStr(seed1)}+${cleanStr(seed2)}+${cleanStr(store)}+${cleanStr(shift)}`;
+            const clean = (s) => (s||'無').replace(/[\/\\?%*:|"<>]/g, '_');
+            const baseFilename = `${date}+${clean(name)}+${clean(document.getElementById('seedStaff1').value)}+${clean(document.getElementById('seedStaff2').value)}+${clean(document.getElementById('ownStore').value)}+${clean(document.getElementById('shift').value)}`;
 
             try {
                 for (let i = 0; i < configs.length; i++) {
                     const canvas = document.getElementById(configs[i].id);
-                    const base64Data = canvas.toDataURL('image/jpeg', 0.85);
-                    const filename = `${baseFilename}_page${i+1}.jpg`;
-
                     const response = await fetch(GAS_WEB_APP_URL, {
                         method: 'POST',
                         body: JSON.stringify({
-                            fileName: filename,
-                            base64Data: base64Data,
+                            fileName: `${baseFilename}_page${i+1}.jpg`,
+                            base64Data: canvas.toDataURL('image/jpeg', 0.85),
                             contentType: 'image/jpeg'
                         })
                     });
-
                     const result = await response.json();
                     if (result.status !== 'success') throw new Error(result.message);
                 }
-
-                statusText.innerText = "✅ 儲存成功！簽核圖片已存入 Google Drive 共用資料夾。";
+                statusText.innerText = "✅ 儲存成功！圖片已存入 Google Drive。";
                 statusText.style.color = "green";
-
-                // 重新刷新下拉歷史清單
                 loadRecordsFromDrive();
-
-                setTimeout(() => {
-                    clearCanvas();
-                    statusText.innerText = "✅ 畫布已還原，可進行下一位簽核！";
-                }, 3000);
-
+                setTimeout(clearCanvas, 3000);
             } catch (error) {
-                console.error("Upload error:", error);
-                statusText.innerText = "❌ 儲存至 Google Drive 失敗：" + error.message;
+                statusText.innerText = "❌ 儲存失敗：" + error.message;
                 statusText.style.color = "red";
             }
         }
