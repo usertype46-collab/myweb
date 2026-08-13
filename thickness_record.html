@@ -60,6 +60,9 @@
         const supabaseKey = 'sb_publishable_qUCcWVbzo-99rP85r_RhQg_EGewmxB4';
         const supabase = createClient(supabaseUrl, supabaseKey);
 
+        // 預設無圖片的內建 SVG Data URI (無須依賴外部網址，絕不失效)
+        const FALLBACK_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'><rect width='100%' height='100%' fill='%23111827'/><path d='M45 60 L65 80 L80 65 L105 90 L45 90 Z' fill='%23374151'/><circle cx='55' cy='50' r='8' fill='%234b5563'/><text x='50%' y='82%' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-size='11' font-family='sans-serif'>無圖片 / No Image</text></svg>";
+
         // 頁面載入時讀取資料
         async function fetchRecords() {
             try {
@@ -115,7 +118,8 @@
             container.classList.remove('hidden');
 
             itemsWithRecords.forEach((item, index) => {
-                const imgSrc = item.image_url ? item.image_url : 'https://via.placeholder.com/150?text=No+Image';
+                const rawUrl = item.image_url ? item.image_url.trim() : '';
+                const imgSrc = rawUrl !== '' ? rawUrl : FALLBACK_SVG;
                 
                 let recordsHtml = '';
                 item.thickness_records.forEach(r => {
@@ -155,6 +159,7 @@
                             <div class="flex items-center gap-5">
                                 <img src="${imgSrc}" alt="${item.item_name}" 
                                      class="w-20 h-20 object-contain bg-black rounded-lg border border-gray-600 shadow-md cursor-zoom-in hover:scale-105 transition"
+                                     onerror="this.onerror=null; this.src='${FALLBACK_SVG}';"
                                      onclick="openImageModal(event, this.src, '${item.item_name}')"
                                      title="點擊放大圖片">
                                 <div>
@@ -200,6 +205,10 @@
             const img = document.getElementById('enlargedImage');
             const titleEl = document.getElementById('enlargedTitle');
             
+            img.onerror = function() {
+                this.onerror = null;
+                this.src = FALLBACK_SVG;
+            };
             img.src = src;
             titleEl.textContent = title;
             modal.classList.remove('hidden');
