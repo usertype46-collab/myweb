@@ -60,63 +60,62 @@
         const supabaseKey = 'sb_publishable_qUCcWVbzo-99rP85r_RhQg_EGewmxB4';
         const supabase = createClient(supabaseUrl, supabaseKey);
 
-        // 標準 Base64 編碼的黑底 SVG 卡片
+        // 標準 Base64 編碼的黑底 SVG 卡片 (預設備用圖)
         const FALLBACK_SVG = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTUwIDE1MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzExMTgyNyIvPjxwYXRoIGQ9Ik00NSA2MCBMNjUgODAgTDgwIDY1IEwxMDUgOTAgTDQ1IDkwIFoiIGZpbGw9IiMzNzQxNTEiLz48Y2lyY2xlIGN4PSI1NSIgY3k9IjUwIiByPSI4IiBmaWxsPSIjNGI1NTYzIi8+PHRleHQgeD0iNTAlIiB5PSI4MiUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM5Y2EzYWYiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=";
 
         /**
-         * 將 Google Drive 的 HTML 檢視連結或 ID 轉換為直連圖片 CDN 網址
+         * 將 Google Drive 的 HTML 檢視連結轉換為高相容性 CDN 圖片網址
          */
         function convertGoogleDriveUrl(url) {
             if (!url) return url;
             const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
             if (match && match[1]) {
-                return `https://lh3.googleusercontent.com/d/${match[1]}`;
+                return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w1000`;
             }
             return url;
         }
 
         /**
-         * 強固型圖片網址解析器 (相容 Google Drive, Supabase, Base64 與純數字檔名)
+         * 強固型圖片網址解析器：若 image_url 為空，自動以 item_name 補全
          */
-        function formatImageUrl(rawUrl) {
-            if (rawUrl === null || rawUrl === undefined) return FALLBACK_SVG;
-            
-            let cleanUrl = String(rawUrl).trim();
-            if (!cleanUrl) return FALLBACK_SVG;
+        function formatImageUrl(rawUrl, itemName) {
+            let cleanUrl = rawUrl ? String(rawUrl).trim() : '';
 
-            // 1. Base64
+            // 1. 若資料庫中的 image_url 為空值，嘗試拿 itemName 當作圖片名稱
+            if (!cleanUrl || cleanUrl === 'null' || cleanUrl === 'undefined') {
+                if (itemName && String(itemName).trim()) {
+                    cleanUrl = String(itemName).trim();
+                } else {
+                    return FALLBACK_SVG;
+                }
+            }
+
+            // 2. Base64
             if (cleanUrl.startsWith('data:image')) return cleanUrl;
 
-            // 2. 判斷並轉換 Google Drive 網址
-            if (cleanUrl.includes('drive.google.com') || cleanUrl.includes('docs.google.com')) {
+            // 3. Google Drive 網址轉換
+            if (cleanUrl.includes('drive.google.com') || cleanUrl.includes('docs.google.com') || cleanUrl.includes('googleusercontent.com')) {
                 return convertGoogleDriveUrl(cleanUrl);
             }
 
-            // 3. 已是 Google CDN 直連網址
-            if (cleanUrl.includes('googleusercontent.com')) {
-                return cleanUrl;
-            }
-
-            // 4. HTTP 強制轉 HTTPS
+            // 4. HTTP 轉 HTTPS
             if (cleanUrl.startsWith('http://')) {
                 cleanUrl = cleanUrl.replace('http://', 'https://');
             }
 
-            // 5. 完整 HTTPS 網址
+            // 5. 完整 HTTPS 網址直連
             if (cleanUrl.startsWith('https://')) {
                 return encodeURI(cleanUrl);
             }
 
-            // 6. 相對路徑清理
+            // 6. 相對路徑與單純檔名處理 (如 "30" 或 "26.png")
             cleanUrl = cleanUrl.replace(/^\/+/, '');
 
             if (cleanUrl.startsWith('storage/v1/object/public/')) {
                 return encodeURI(`${supabaseUrl}/${cleanUrl}`);
             }
 
-            // 若僅包含檔名 (如 "30" 或 "26.png")
             if (!cleanUrl.includes('/')) {
-                // 如果沒有副檔名，預設先補上 .jpg
                 if (!/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(cleanUrl)) {
                     cleanUrl = `${cleanUrl}.jpg`;
                 }
@@ -125,6 +124,58 @@
 
             return encodeURI(`${supabaseUrl}/storage/v1/object/public/${cleanUrl}`);
         }
+
+        // 智慧型多重副檔名與路徑修補降級機制
+        window.handleImageError = function(img) {
+            let retryStep = parseInt(img.dataset.retryStep || "0");
+            const rawSrc = img.dataset.rawSrc || img.src;
+
+            // 1. Google Drive 載入失敗備用方案
+            if (rawSrc.includes('drive.google.com') || rawSrc.includes('googleusercontent.com')) {
+                if (retryStep === 0) {
+                    img.dataset.retryStep = "1";
+                    const match = rawSrc.match(/id=([a-zA-Z0-9_-]+)/) || rawSrc.match(/\/d\/([a-zA-Z0-9_-]+)/);
+                    if (match && match[1]) {
+                        img.src = `https://drive.google.com/uc?export=view&id=${match[1]}`;
+                        return;
+                    }
+                }
+                img.onerror = null;
+                img.src = FALLBACK_SVG;
+                return;
+            }
+
+            if (rawSrc.startsWith('data:image')) {
+                img.onerror = null;
+                img.src = FALLBACK_SVG;
+                return;
+            }
+
+            // 2. 切換 Supabase 常見副檔名嘗試 (.png, .PNG, .JPG, .jpeg, .JPEG, .webp, 無副檔名)
+            const extensions = ['.png', '.PNG', '.JPG', '.jpeg', '.JPEG', '.webp', ''];
+
+            if (retryStep < extensions.length) {
+                img.dataset.retryStep = (retryStep + 1).toString();
+                const ext = extensions[retryStep];
+                let baseUrl = rawSrc.split('?')[0].replace(/\.(jpg|jpeg|png|webp|gif|svg)$/i, '');
+                img.src = ext === '' ? baseUrl : baseUrl + ext;
+                return;
+            }
+
+            // 3. 嘗試移除 coating_images/ 前綴（避免目錄結構不符）
+            if (retryStep === extensions.length) {
+                img.dataset.retryStep = (retryStep + 1).toString();
+                if (rawSrc.includes('/coating_images/')) {
+                    img.src = rawSrc.replace('/coating_images/', '/');
+                    return;
+                }
+            }
+
+            // 4. 所有路徑與格式均失敗時，顯示備用 SVG
+            console.warn("圖片載入失敗，採用備用圖:", rawSrc);
+            img.onerror = null;
+            img.src = FALLBACK_SVG;
+        };
 
         // 頁面載入時讀取資料
         async function fetchRecords() {
@@ -179,7 +230,8 @@
             let html = '';
 
             itemsWithRecords.forEach((item, index) => {
-                const imgSrc = formatImageUrl(item.image_url);
+                // 傳入 item.image_url 與 item.item_name 作為自動補全備援
+                const imgSrc = formatImageUrl(item.image_url, item.item_name);
                 
                 let recordsHtml = '';
                 item.thickness_records.forEach(r => {
@@ -257,37 +309,6 @@
         }
 
         fetchRecords();
-
-        /**
-         * 智慧型多重副檔名修補與錯誤降級機制
-         */
-        window.handleImageError = function(img) {
-            let retryStep = parseInt(img.dataset.retryStep || "0");
-            const rawSrc = img.dataset.rawSrc || img.src;
-
-            // 1. 若為 Google Drive 或 Base64 連結載入失敗，直接顯示預設圖，不再盲目更換副檔名
-            if (rawSrc.includes('googleusercontent.com') || rawSrc.includes('drive.google.com') || rawSrc.startsWith('data:image')) {
-                console.warn("Google Drive 或圖檔網址無法存取:", rawSrc);
-                img.onerror = null;
-                img.src = FALLBACK_SVG;
-                return;
-            }
-
-            // 2. 針對一般 Supabase / 本地儲存相對路徑，切換常見副檔名嘗試重新讀取
-            const extensions = ['.png', '.jpeg', '.webp', '.PNG', '.JPG'];
-
-            if (retryStep < extensions.length) {
-                let baseUrl = rawSrc.replace(/\.(jpg|jpeg|png|webp|gif|svg)$/i, '');
-                img.dataset.retryStep = (retryStep + 1).toString();
-                img.src = baseUrl + extensions[retryStep];
-                return;
-            }
-
-            // 3. 所有格式均失敗時，終止循環並顯示 SVG 替代圖
-            console.warn("圖片載入失敗 (404/Null):", rawSrc);
-            img.onerror = null;
-            img.src = FALLBACK_SVG;
-        };
 
         window.openImageModal = function(event, src, title) {
             event.preventDefault();
