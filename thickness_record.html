@@ -64,36 +64,47 @@
         const FALLBACK_SVG = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTUwIDE1MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzExMTgyNyIvPjxwYXRoIGQ9Ik00NSA2MCBMNjUgODAgTDgwIDY1IEwxMDUgOTAgTDQ1IDkwIFoiIGZpbGw9IiMzNzQxNTEiLz48Y2lyY2xlIGN4PSI1NSIgY3k9IjUwIiByPSI4IiBmaWxsPSIjNGI1NTYzIi8+PHRleHQgeD0iNTAlIiB5PSI4MiUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM5Y2EzYWYiIGZvbnQtc2l6ZT0iMTIiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=";
 
         /**
-         * 智慧圖片網址修正器
-         * 1. 自動把 http:// 轉為 https:// (避免被 GitHub Pages 封鎖)
-         * 2. 自動補充 Supabase Storage 缺失的完整網址
-         * 3. 自動對特殊字元與空格進行 encodeURI
+         * 強固型圖片網址解析器 (解決 30、26 等純數字或相對路徑圖片無法顯示問題)
          */
-        function formatImageUrl(url) {
-            if (!url || typeof url !== 'string') return FALLBACK_SVG;
-            let cleanUrl = url.trim();
+        function formatImageUrl(rawUrl) {
+            if (rawUrl === null || rawUrl === undefined) return FALLBACK_SVG;
+            
+            // 強制轉為字串並去除首尾空格 (防範 DB 儲存數字型態 30 / 26)
+            let cleanUrl = String(rawUrl).trim();
             if (!cleanUrl) return FALLBACK_SVG;
 
-            // 如果已經是 Base64，直接回傳
+            // 1. 若已經是 Base64，直接傳回
             if (cleanUrl.startsWith('data:image')) return cleanUrl;
 
-            // 1. 強制升級 HTTP 至 HTTPS
+            // 2. 強制升級 HTTP 至 HTTPS
             if (cleanUrl.startsWith('http://')) {
                 cleanUrl = cleanUrl.replace('http://', 'https://');
             }
 
-            // 2. 自動補全 Supabase Storage 相對路徑
-            if (!cleanUrl.startsWith('https://')) {
-                cleanUrl = cleanUrl.replace(/^\/+/, '');
-                // 判斷是否已經有 storage/v1 結構，否則自動組合
-                if (cleanUrl.startsWith('storage/v1/object/public/')) {
-                    cleanUrl = `${supabaseUrl}/${cleanUrl}`;
-                } else {
-                    cleanUrl = `${supabaseUrl}/storage/v1/object/public/${cleanUrl}`;
-                }
+            // 3. 完整 HTTPS 網址直接回傳
+            if (cleanUrl.startsWith('https://')) {
+                return encodeURI(cleanUrl);
             }
 
-            return encodeURI(cleanUrl);
+            // 4. 相對路徑修補處理 (如存成 "30", "30.jpg", "coating_images/30.jpg")
+            cleanUrl = cleanUrl.replace(/^\/+/, ''); // 去除開頭斜線
+
+            // 若已有完整的 Storage 路徑
+            if (cleanUrl.startsWith('storage/v1/object/public/')) {
+                return encodeURI(`${supabaseUrl}/${cleanUrl}`);
+            }
+
+            // 若無包含 Bucket 資料夾層級（例如僅有 "30" 或 "30.jpg"）
+            if (!cleanUrl.includes('/')) {
+                // 自動補齊副檔名 .jpg
+                if (!/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(cleanUrl)) {
+                    cleanUrl = `${cleanUrl}.jpg`;
+                }
+                // 預設拼入公共 Bucket 名稱 'coating_images' (可依需求調整)
+                cleanUrl = `coating_images/${cleanUrl}`;
+            }
+
+            return encodeURI(`${supabaseUrl}/storage/v1/object/public/${cleanUrl}`);
         }
 
         // 頁面載入時讀取資料
@@ -191,7 +202,7 @@
                             <div class="flex items-center gap-5">
                                 <img src="${imgSrc}" alt="${item.item_name}" 
                                      class="w-20 h-20 object-contain bg-black rounded-lg border border-gray-600 shadow-md cursor-zoom-in hover:scale-105 transition"
-                                     onerror="this.onerror=null; this.src='${FALLBACK_SVG}';"
+                                     onerror="handleImageError(this)"
                                      onclick="openImageModal(event, this.src, '${item.item_name}')"
                                      title="點擊放大圖片">
                                 <div>
@@ -228,6 +239,25 @@
         }
 
         fetchRecords();
+
+        // 圖片載入失敗時的容錯修補機制
+        window.handleImageError = function(img) {
+            if (img.dataset.failed) {
+                img.src = FALLBACK_SVG;
+                return;
+            }
+            
+            // 若預設載入失敗，嘗試補上 .png 再試一次
+            let currentSrc = img.src;
+            if (!img.dataset.triedPng && currentSrc.endsWith('.jpg')) {
+                img.dataset.triedPng = "true";
+                img.src = currentSrc.replace(/\.jpg$/, '.png');
+                return;
+            }
+
+            img.dataset.failed = "true";
+            img.src = FALLBACK_SVG;
+        };
 
         window.openImageModal = function(event, src, title) {
             event.preventDefault();
