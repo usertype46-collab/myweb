@@ -61,22 +61,33 @@
         const supabase = createClient(supabaseUrl, supabaseKey);
 
         // 標準 Base64 編碼的黑底 SVG 卡片 (預設備用圖)
-        const FALLBACK_SVG = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTUwIDE1MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzExMTgyNyIvPjxwYXRoIGQ9Ik00NSA2MCBMNjUgODAgTDgwIDY1IEwxMDUgOTAgTDQ1IDkwIFoiIGZpbGw9IiMzNzQxNTEiLz48Y2lyY2xlIGN4PSI1NSIgY3k9IjUwIiByPSI4IiBmaWxsPSIjNGI1NTYzIi8+PHRleHQgeD0iNTAlIiB5PSI4MiUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM5Y2EzYWYiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=";
+        const FALLBACK_SVG = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTUwIDE1MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iIzExMTgyNyIvPjxwYXRoIGQ9Ik00NSA2MCBMNjUgODAgTDgwIDY1IEwxMDUgOTAgTDQ1IDkwIFoiIGZpbGw9IiMzNzQxNTEiLz48Y2lyY2xlIGN4PSI1NSIgY3k9IjUwIiByPSI4IiBmaWxsPSIjNGI1NTYzIi8+PHRleHQgeD0iNTAlIiB5PSI8MiUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM5Y2EzYWYiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=";
 
         /**
-         * 將 Google Drive 的 HTML 檢視連結轉換為高相容性 CDN 圖片網址
+         * 從各種網址格式中解析並提取 Google Drive File ID
+         */
+        function extractGoogleDriveId(url) {
+            if (!url) return null;
+            try { url = decodeURIComponent(url); } catch(e) {}
+            const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || 
+                          url.match(/id=([a-zA-Z0-9_-]+)/) ||
+                          url.match(/file\/d\/([a-zA-Z0-9_-]+)/);
+            return match ? match[1] : null;
+        }
+
+        /**
+         * 將 Google Drive 或 Image Proxy 轉換為高相容性 CDN 直連網址
          */
         function convertGoogleDriveUrl(url) {
-            if (!url) return url;
-            const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
-            if (match && match[1]) {
-                return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w1000`;
+            const driveId = extractGoogleDriveId(url);
+            if (driveId) {
+                return `https://lh3.googleusercontent.com/d/${driveId}`;
             }
             return url;
         }
 
         /**
-         * 強固型圖片網址解析器：若 image_url 為空，自動以 item_name 補全
+         * 強固型圖片網址解析器：相容 Supabase Storage、Google Drive、Image Proxy 及純檔名/品項名
          */
         function formatImageUrl(rawUrl, itemName) {
             let cleanUrl = rawUrl ? String(rawUrl).trim() : '';
@@ -90,31 +101,32 @@
                 }
             }
 
-            // 2. Base64
+            // 2. Base64 格式
             if (cleanUrl.startsWith('data:image')) return cleanUrl;
 
-            // 3. Google Drive 網址轉換
-            if (cleanUrl.includes('drive.google.com') || cleanUrl.includes('docs.google.com') || cleanUrl.includes('googleusercontent.com')) {
+            // 3. 處理包含 image-proxy 代理或 Google Drive 相關連結
+            if (cleanUrl.includes('image-proxy') || cleanUrl.includes('drive.google.com') || cleanUrl.includes('googleusercontent.com')) {
                 return convertGoogleDriveUrl(cleanUrl);
             }
 
-            // 4. HTTP 轉 HTTPS
-            if (cleanUrl.startsWith('http://')) {
-                cleanUrl = cleanUrl.replace('http://', 'https://');
-            }
-
-            // 5. 完整 HTTPS 網址直連
-            if (cleanUrl.startsWith('https://')) {
+            // 4. HTTP / HTTPS 完整網址直連
+            if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
+                if (cleanUrl.startsWith('http://')) cleanUrl = cleanUrl.replace('http://', 'https://');
                 return encodeURI(cleanUrl);
             }
 
-            // 6. 相對路徑與單純檔名處理 (如 "30" 或 "26.png")
+            // 5. 相對路徑與 Supabase Storage 處理
             cleanUrl = cleanUrl.replace(/^\/+/, '');
 
             if (cleanUrl.startsWith('storage/v1/object/public/')) {
                 return encodeURI(`${supabaseUrl}/${cleanUrl}`);
             }
 
+            if (cleanUrl.startsWith('coating_images/')) {
+                return encodeURI(`${supabaseUrl}/storage/v1/object/public/${cleanUrl}`);
+            }
+
+            // 單純檔名或品項號碼 (如 "30" 或 "26.png")
             if (!cleanUrl.includes('/')) {
                 if (!/\.(jpg|jpeg|png|webp|gif|svg)$/i.test(cleanUrl)) {
                     cleanUrl = `${cleanUrl}.jpg`;
@@ -125,24 +137,27 @@
             return encodeURI(`${supabaseUrl}/storage/v1/object/public/${cleanUrl}`);
         }
 
-        // 智慧型多重副檔名與路徑修補降級機制
+        // 智慧型多重 CDN 降級與多副檔名輪詢機制
         window.handleImageError = function(img) {
             let retryStep = parseInt(img.dataset.retryStep || "0");
             const rawSrc = img.dataset.rawSrc || img.src;
 
-            // 1. Google Drive 載入失敗備用方案
-            if (rawSrc.includes('drive.google.com') || rawSrc.includes('googleusercontent.com')) {
+            // 1. Google Drive 多階 CDN 備援嘗試
+            const driveId = extractGoogleDriveId(rawSrc) || extractGoogleDriveId(img.src);
+            if (driveId) {
                 if (retryStep === 0) {
                     img.dataset.retryStep = "1";
-                    const match = rawSrc.match(/id=([a-zA-Z0-9_-]+)/) || rawSrc.match(/\/d\/([a-zA-Z0-9_-]+)/);
-                    if (match && match[1]) {
-                        img.src = `https://drive.google.com/uc?export=view&id=${match[1]}`;
-                        return;
-                    }
+                    img.src = `https://drive.google.com/thumbnail?id=${driveId}&sz=w1000`;
+                    return;
+                } else if (retryStep === 1) {
+                    img.dataset.retryStep = "2";
+                    img.src = `https://drive.google.com/uc?export=view&id=${driveId}`;
+                    return;
+                } else {
+                    img.onerror = null;
+                    img.src = FALLBACK_SVG;
+                    return;
                 }
-                img.onerror = null;
-                img.src = FALLBACK_SVG;
-                return;
             }
 
             if (rawSrc.startsWith('data:image')) {
@@ -162,7 +177,7 @@
                 return;
             }
 
-            // 3. 嘗試移除 coating_images/ 前綴（避免目錄結構不符）
+            // 3. 嘗試移除 coating_images/ 前綴（避免 Bucket 目錄結構差異）
             if (retryStep === extensions.length) {
                 img.dataset.retryStep = (retryStep + 1).toString();
                 if (rawSrc.includes('/coating_images/')) {
@@ -230,7 +245,6 @@
             let html = '';
 
             itemsWithRecords.forEach((item, index) => {
-                // 傳入 item.image_url 與 item.item_name 作為自動補全備援
                 const imgSrc = formatImageUrl(item.image_url, item.item_name);
                 
                 let recordsHtml = '';
